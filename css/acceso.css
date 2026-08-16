@@ -1,0 +1,73 @@
+/* FuxoraScope · ACCESO (css/acceso.css)
+   Pantallas de cuenta: entrar, registro, confirmar, recuperar. */
+
+.fs-acceso{
+  min-height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  gap:34px; padding:40px 22px;
+  background:
+    radial-gradient(1000px 600px at 12% -8%, rgba(11,110,143,.34), transparent 60%),
+    radial-gradient(760px 520px at 92% 108%, rgba(22,179,201,.20), transparent 62%),
+    var(--fondo);
+}
+
+.fs-acceso-panel{
+  width:100%; max-width:430px;
+  background:var(--panel);
+  border:1px solid var(--borde);
+  border-radius:var(--r-grande);
+  padding:34px 32px;
+  box-shadow:var(--sombra);
+}
+.fs-acceso-panel--ancho{ max-width:640px; }
+
+.fs-marca{ display:flex; align-items:center; gap:13px; margin-bottom:26px; }
+.fs-marca-simbolo{ color:var(--marca-clara); flex:0 0 auto; line-height:0; }
+.fs-marca-texto b{ display:block; font-size:20px; letter-spacing:.3px; color:var(--texto); }
+.fs-marca-texto small{ display:block; font-size:12.5px; color:var(--texto-3); }
+
+.fs-acceso-panel h1{ font-size:25px; letter-spacing:-.3px; margin-bottom:7px; }
+.fs-acceso-bajada{ color:var(--texto-2); font-size:14.5px; margin-bottom:22px; }
+.fs-acceso-bajada b{ color:var(--texto); }
+
+.fs-nota-demo{
+  background:#3a2e07; border:1px solid #6d5810; color:#ffe08a;
+  border-radius:var(--r-chico); padding:11px 13px;
+  font-size:13.5px; line-height:1.5; margin-bottom:20px;
+}
+.fs-nota-demo b{ color:#fff0be; }
+
+.fs-acceso-panel form .fs-btn--principal{ width:100%; padding:13px; font-size:15.5px; margin-top:5px; }
+
+.fs-acceso-pies{
+  display:flex; align-items:center; justify-content:center;
+  gap:9px; margin-top:20px; padding-top:18px;
+  border-top:1px solid var(--borde);
+  font-size:14px; color:var(--texto-3); flex-wrap:wrap;
+}
+
+/* Panel lateral con la propuesta de valor. Se oculta en pantallas angostas
+   para que el formulario no quede empujado hacia abajo. */
+.fs-acceso-lado{ max-width:380px; }
+.fs-acceso-lado h2{
+  font-size:27px; line-height:1.28; letter-spacing:-.4px;
+  color:var(--texto); margin-bottom:20px;
+}
+.fs-acceso-lado ul{ list-style:none; display:flex; flex-direction:column; gap:14px; }
+.fs-acceso-lado li{
+  color:var(--texto-2); font-size:14.5px; line-height:1.55;
+  padding-left:24px; position:relative;
+}
+.fs-acceso-lado li:before{
+  content:""; position:absolute; left:0; top:8px;
+  width:10px; height:10px; border-radius:50%;
+  background:var(--marca-clara); box-shadow:0 0 0 4px rgba(22,179,201,.16);
+}
+.fs-acceso-lado li b{ color:var(--texto); }
+
+@media (max-width:940px){ .fs-acceso-lado{ display:none; } }
+@media (max-width:520px){
+  .fs-acceso{ padding:24px 14px; align-items:flex-start; }
+  .fs-acceso-panel{ padding:26px 20px; }
+  .fs-acceso-panel h1{ font-size:22px; }
+}
