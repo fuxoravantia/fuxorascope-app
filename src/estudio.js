@@ -759,6 +759,7 @@
         '<div class="fs-res-acciones">' +
           '<button type="button" class="fs-btn" id="fs-guardar">Guardar</button>' +
           '<button type="button" class="fs-btn" id="fs-comparar-radios">📊 Comparar radios</button>' +
+          '<button type="button" class="fs-btn" id="fs-pdf">Informe PDF</button>' +
           '<button type="button" class="fs-btn fs-btn--tenue" id="fs-nuevo">Nuevo estudio</button>' +
         '</div>' +
       '</div>' +
@@ -828,8 +829,6 @@
                  esc(f.disponible ? f.aporta : 'no disponible en esta consulta') +
                  '<br><small>' + esc(f.licencia) + '</small></p>';
         }).join('') +
-        '<p class="fs-nota-pdf">📄 El informe en PDF para programas combinados llega en la próxima ' +
-          'versión — por ahora, evalúa cada uso por separado para exportarlo.</p>' +
       '</div>';
 
     enlazarResultadoMixto();
@@ -846,6 +845,10 @@
 
     var btnComparar = dom.uno('#fs-comparar-radios', raiz);
     if (btnComparar) btnComparar.addEventListener('click', function(ev){ compararRadios(ev.currentTarget); });
+
+    dom.uno('#fs-pdf', raiz).addEventListener('click', function(){
+      window.FUXORASCOPE_INFORME.abrir(FS.estado.obtener('estudio'));
+    });
 
     dom.uno('#fs-guardar', raiz).addEventListener('click', function(ev){
       var libre = FS.util.ocupar(ev.currentTarget, 'Guardando…');

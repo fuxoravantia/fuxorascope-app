@@ -196,6 +196,138 @@
     return { cuerpo: pagina1 + pagina2, titulo: e.nombre };
   }
 
+  function colorNivel(nivel){
+    return (LECTURA.NIVELES[nivel] || LECTURA.NIVELES.Media).color;
+  }
+  function colorCompat(puntaje){
+    return puntaje >= 70 ? '#1f9d55' : puntaje >= 45 ? '#0b6e8f' : puntaje >= 20 ? '#c98a10' : '#c0392b';
+  }
+
+  /* Informe del modo "programa combinado" — misma estructura de dos páginas
+     y los mismos estilos, pero sin depender de LECTURA.narrar() (que exige
+     subíndices de un solo uso): aquí el veredicto es el promedio de varios
+     usos, así que la página 1 se arma con el desglose por uso y la 2 con la
+     compatibilidad entre ellos, en vez de fuerzas/riesgos de un solo perfil. */
+  function construirMixto(e){
+    var color = colorNivel(e.nivel);
+    var cats = Object.keys(e.porCategoria || {})
+      .filter(function(c){ return c !== 'otro'; })
+      .sort(function(a, b){ return e.porCategoria[b] - e.porCategoria[a]; });
+
+    var cabecera =
+      '<header class="cab">' +
+        '<div class="cab-marca">' +
+          '<svg viewBox="0 0 48 48" width="30" height="30" class="cab-logo">' +
+            '<circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".35"/>' +
+            '<circle cx="24" cy="24" r="12" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/>' +
+            '<circle cx="24" cy="24" r="4.5" fill="currentColor"/>' +
+            '<path d="M24 3v6M24 39v6M3 24h6M39 24h6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>' +
+          '</svg>' +
+          '<div><b>FuxoraScope</b><small>Análisis de viabilidad de implantación</small></div>' +
+        '</div>' +
+        '<div class="cab-fecha">' + esc(fechaLarga(e.fecha)) + '</div>' +
+      '</header>';
+
+    var pagina1 =
+      '<section class="hoja"><div class="contenido">' +
+        cabecera +
+        '<h1>' + esc(e.nombre) + '</h1>' +
+        '<p class="subtitulo">🧩 Programa combinado · ' + e.porUso.length + ' usos · radio de ' +
+          miles(e.radioM) + ' m' + (e.direccion ? ' · ' + esc(e.direccion) : '') + '</p>' +
+
+        '<div class="veredicto" style="--tono:' + color + '">' +
+          '<div class="veredicto-medidor">' + medidor(e.indice, color) + '</div>' +
+          '<div class="veredicto-texto">' +
+            '<span class="etiqueta">Dictamen del conjunto</span>' +
+            '<h2>Viabilidad ' + esc(e.nivel) + '</h2>' +
+            '<p>Promedio de los ' + e.porUso.length + ' usos elegidos — cada uno se evalúa con el ' +
+              'perfil de criterios que le corresponde, y este número es el punto medio entre todos.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="caja">' +
+          '<h3>Cada uso por separado</h3>' +
+          '<div class="usos-grid">' +
+            e.porUso.map(function(u){
+              return '<div class="uso-mini" style="--tono:' + colorNivel(u.nivel) + '">' +
+                '<span class="uso-mini-ico">' + u.icono + '</span>' +
+                '<b>' + esc(u.nombre) + '</b>' +
+                '<i>' + u.indice + '</i><small>' + esc(u.nivel) + '</small></div>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+
+        '<footer class="pie"><span>FuxoraScope · Informe de viabilidad</span><span>Página 1 de 2</span></footer>' +
+      '</div></section>';
+
+    var filasCenso = e.censo ? [
+      { et:'Habitantes en el radio', v: miles(e.censo.habitantes) },
+      e.censo.viviendas ? { et:'Viviendas', v: miles(e.censo.viviendas) } : null,
+      e.censo.personasPorVivienda ? { et:'Personas por vivienda', v: e.censo.personasPorVivienda } : null,
+      e.censo.estrato ? { et:'Estrato predominante', v: e.censo.estrato.predominante +
+        ' · promedio ' + e.censo.estrato.promedio } : null,
+      { et:'Nivel de detalle', v: e.censo.nivel === 'manzana' ? 'Manzana censal' : 'Sector censal (aproximado)' }
+    ].filter(Boolean) : [];
+
+    var pagina2 =
+      '<section class="hoja"><div class="contenido">' +
+        cabecera +
+        '<h1 class="h1-menor">Sustento del dictamen</h1>' +
+        '<p class="subtitulo">' + esc(e.nombre) + '</p>' +
+
+        (e.compatibilidad && e.compatibilidad.length
+          ? '<div class="caja">' +
+              '<h3>Compatibilidad entre los usos elegidos</h3>' +
+              '<p class="nota">Se calcula por cercanía de horario, impacto y público entre cada pareja — ' +
+                'no es un concepto de uso del suelo oficial, eso solo lo emite Planeación Municipal.</p>' +
+              e.compatibilidad.map(function(c){
+                return '<div class="compat-fila">' +
+                  '<div class="compat-cab"><b>' + esc(c.a) + ' + ' + esc(c.b) + '</b>' +
+                    '<span class="compat-badge" style="--tono:' + colorCompat(c.puntaje) + '">' +
+                      esc(c.etiqueta) + ' · ' + c.puntaje + '</span></div>' +
+                  '<p>' + esc(c.motivo) + '</p>' +
+                '</div>';
+              }).join('') +
+            '</div>'
+          : '') +
+
+        (filasCenso.length
+          ? '<div class="caja"><h3>Población · Censo 2018 (DANE)</h3><table class="tabla">' +
+              filasCenso.map(function(f){
+                return '<tr><td>' + esc(f.et) + '</td><td><b>' + esc(f.v) + '</b></td></tr>';
+              }).join('') +
+            '</table></div>'
+          : '') +
+
+        '<div class="caja">' +
+          '<h3>Inventario del radio <small>' + miles(e.totalPuntos) + ' puntos leídos · ' +
+            (e.viasCercanas || 0) + ' tramos de vía relevantes</small></h3>' +
+          '<div class="fichas">' +
+            cats.slice(0, 10).map(function(c){
+              return '<div class="ficha"><b>' + e.porCategoria[c] + '</b>' +
+                     '<span>' + esc(LECTURA.NOMBRE_CATEGORIA[c] || c) + '</span></div>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+
+        '<div class="caja caja--fuentes">' +
+          '<h3>Origen de los datos</h3>' +
+          (e.procedencia || []).map(function(f){
+            return '<p><b>' + esc(f.nombre) + '</b> — ' +
+                   esc(f.disponible ? f.aporta : 'no disponible en esta consulta') +
+                   '<br><span class="licencia">' + esc(f.licencia) + '</span></p>';
+          }).join('') +
+          '<p class="nota">Coordenadas del predio: ' + Number(e.lat).toFixed(5) + ', ' +
+            Number(e.lng).toFixed(5) + '. Este informe evalúa condiciones de entorno; ' +
+            'no sustituye estudios de suelo, norma urbana ni factibilidad financiera.</p>' +
+        '</div>' +
+
+        '<footer class="pie"><span>FuxoraScope · Informe de viabilidad</span><span>Página 2 de 2</span></footer>' +
+      '</div></section>';
+
+    return { cuerpo: pagina1 + pagina2, titulo: e.nombre };
+  }
+
   var ESTILOS = '' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
     'body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:#65798a;color:#16242e;' +
@@ -261,6 +393,20 @@
     '.ficha{border:1px solid #d5e3ec;border-radius:9px;padding:7px 11px;min-width:96px;background:#f6fafc}' +
     '.ficha b{display:block;font-size:14pt;color:#0b6e8f;line-height:1}' +
     '.ficha span{display:block;font-size:8pt;color:#5a7688;margin-top:2px}' +
+    '.usos-grid{display:flex;flex-wrap:wrap;gap:9px}' +
+    '.uso-mini{flex:1;min-width:90px;text-align:center;border:1.5px solid var(--tono);border-radius:10px;' +
+      'padding:9px 6px;background:#f6fafc}' +
+    '.uso-mini-ico{font-size:16pt;display:block}' +
+    '.uso-mini b{display:block;font-size:8pt;color:#2c4351;margin:4px 0 2px}' +
+    '.uso-mini i{font-style:normal;display:block;font-size:15pt;font-weight:800;color:var(--tono)}' +
+    '.uso-mini small{color:#6b8697;font-size:7.4pt}' +
+    '.compat-fila{border-bottom:1px solid #e3ecf2;padding:8px 0}' +
+    '.compat-fila:last-child{border-bottom:none;padding-bottom:0}' +
+    '.compat-cab{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}' +
+    '.compat-cab b{font-size:9.6pt;color:#0b2b3a}' +
+    '.compat-badge{background:var(--tono);color:#fff;font-size:7.6pt;font-weight:700;' +
+      'padding:2px 9px;border-radius:20px;white-space:nowrap}' +
+    '.compat-fila p{font-size:8.8pt;color:#4a6a7c;margin-top:4px}' +
     '.pie{margin-top:auto;padding-top:9px;border-top:1px solid #e3ecf2;display:flex;' +
       'justify-content:space-between;font-size:7.8pt;color:#6b8697}' +
     '.barra-acciones{position:sticky;top:0;z-index:9;background:#0d1b26;padding:11px 16px;display:flex;' +
@@ -303,7 +449,7 @@
 
   function abrir(estudio){
     if (!estudio) return;
-    var doc = construir(estudio);
+    var doc = estudio.modo === 'mixto' ? construirMixto(estudio) : construir(estudio);
     var ventana = window.open('', '_blank');
     if (!ventana) {
       window.FS.aviso('El navegador bloqueó la ventana del informe. Permite las ventanas emergentes.', 'error');
@@ -327,5 +473,8 @@
   // `construir` y `ESTILOS` se exponen para poder previsualizar o incrustar
   // el informe sin abrir una ventana nueva (útil en pruebas y a futuro para
   // un envío por correo desde el servidor).
-  window.FUXORASCOPE_INFORME = { abrir: abrir, construir: construir, ESTILOS: ESTILOS, AJUSTE: AJUSTE };
+  window.FUXORASCOPE_INFORME = {
+    abrir: abrir, construir: construir, construirMixto: construirMixto,
+    ESTILOS: ESTILOS, AJUSTE: AJUSTE
+  };
 })();
