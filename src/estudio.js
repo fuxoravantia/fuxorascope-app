@@ -14,17 +14,27 @@
   var FS = window.FS, dom = FS.dom, esc = dom.escapar;
   var MOTOR = window.FUXORASCOPE_MOTOR, DATOS = window.FUXORASCOPE_DATOS, LECTURA = window.FUXORASCOPE_LECTURA;
 
-  var USOS = [
-    { id:'comercio',    icono:'🛍️', nombre:'Comercio',      pie:'Local, tienda, superficie' },
-    { id:'gastronomia', icono:'🍽️', nombre:'Gastronomía',   pie:'Restaurante, café, bar' },
-    { id:'salud',       icono:'🩺', nombre:'Salud',          pie:'Consultorios, droguería, clínica' },
-    { id:'oficinas',    icono:'💼', nombre:'Oficinas',       pie:'Corporativo, coworking' },
-    { id:'general',     icono:'🏗️', nombre:'Uso mixto',      pie:'Vivienda + comercio, u otro' }
+  // El Paso 3 muestra el catálogo completo de MOTOR.PROGRAMA (28 usos
+  // concretos), agrupado por el perfil de pesos que le corresponde a cada
+  // uno — así el usuario elige "Gimnasio" o "Cafetería" directamente, no un
+  // genérico "Comercio" que hay que adivinar qué tan bien representa.
+  var GRUPOS_PROGRAMA = [
+    { perfil:'comercio',    titulo:'Comercio' },
+    { perfil:'gastronomia', titulo:'Gastronomía' },
+    { perfil:'salud',       titulo:'Salud' },
+    { perfil:'oficinas',    titulo:'Oficinas y servicios' },
+    { perfil:'general',     titulo:'Otros usos' }
   ];
+  function programaPorGrupo(perfil){
+    return MOTOR.PROGRAMA.filter(function(u){ return u.perfil === perfil; });
+  }
+  function usoActual(){
+    return MOTOR.PROGRAMA_POR_ID[borrador.usoId] || MOTOR.PROGRAMA[0];
+  }
 
   var borrador = {
     punto: null, direccion: '', radioM: FS.cfg.RADIO_INICIAL,
-    uso: 'comercio', nombre: '', modo: 'simple', usosMixto: []
+    usoId: MOTOR.PROGRAMA[0].id, nombre: '', modo: 'simple', usosMixto: []
   };
   var mapa = null, capaPredio = null, capaRadio = null, capaPuntos = null;
   var capaEstratos = null, leyendaCtrl = null, botonEstratoBtn = null;
@@ -77,11 +87,19 @@
           '<div class="fs-paso">' +
             '<h2><i>3</i> ¿Qué se quiere implantar?</h2>' +
             '<div class="fs-usos" id="fs-usos" ' + (borrador.modo === 'mixto' ? 'hidden' : '') + '>' +
-              USOS.map(function(u){
-                return '<button type="button" class="fs-uso' + (u.id === borrador.uso ? ' activa' : '') +
-                  '" data-uso="' + u.id + '">' +
-                  '<span class="fs-uso-icono">' + u.icono + '</span>' +
-                  '<b>' + esc(u.nombre) + '</b><small>' + esc(u.pie) + '</small></button>';
+              GRUPOS_PROGRAMA.map(function(g){
+                var items = programaPorGrupo(g.perfil);
+                if (!items.length) return '';
+                return '<div class="fs-usos-grupo">' +
+                  '<span class="fs-usos-grupo-titulo">' + esc(g.titulo) + '</span>' +
+                  '<div class="fs-usos-grupo-chips">' +
+                    items.map(function(u){
+                      return '<button type="button" class="fs-chip-uso' +
+                        (u.id === borrador.usoId ? ' activa' : '') + '" data-uso="' + u.id + '">' +
+                        u.icono + ' ' + esc(u.nombre) + '</button>';
+                    }).join('') +
+                  '</div>' +
+                '</div>';
               }).join('') +
             '</div>' +
             '<button type="button" id="fs-btn-combinar" class="fs-enlace-combinar" ' +
@@ -369,14 +387,14 @@
         totalPuntos: paquete.elementos.length, fecha: new Date().toISOString()
       };
     } else {
+      var uso = usoActual();
       var resultado = MOTOR.calcularIndice({
         elementos: paquete.elementos, radioM: borrador.radioM,
-        centro: borrador.punto, tipoNegocio: borrador.uso, poblacion: poblacion
+        centro: borrador.punto, tipoNegocio: uso.perfil, poblacion: poblacion
       });
       mezclaUsos = MOTOR.indiceMezclaUsos(resultado.porCategoria);
-      var uso = USOS.filter(function(u){ return u.id === borrador.uso; })[0] || USOS[0];
       estudio = Object.assign({}, resultado, {
-        modo: 'simple',
+        modo: 'simple', usoId: uso.id,
         nombre: borrador.nombre || (uso.nombre + ' · ' + (borrador.direccion || FS.cfg.CIUDAD)),
         lat: borrador.punto.lat, lng: borrador.punto.lng,
         direccion: borrador.direccion,
@@ -411,7 +429,7 @@
         }
         res = MOTOR.calcularIndice({
           elementos: elementos, radioM: r, centro: borrador.punto,
-          tipoNegocio: borrador.uso, poblacion: poblacion
+          tipoNegocio: usoActual().perfil, poblacion: poblacion
         });
         return { radioM:r, indice: res.indice, nivel: res.nivel };
       });
@@ -510,13 +528,19 @@
       '</div>' +
 
       '<div class="fs-cambiar-uso">' +
-        '<span>Ver el mismo predio como:</span>' +
-        '<div class="fs-opciones" id="fs-usos-res">' +
-          USOS.map(function(u){
-            return '<button type="button" class="fs-opcion' + (u.id === borrador.uso ? ' activa' : '') +
-                   '" data-uso="' + u.id + '">' + u.icono + ' ' + esc(u.nombre) + '</button>';
+        '<label for="fs-usos-res">Ver el mismo predio como:</label>' +
+        '<select id="fs-usos-res">' +
+          GRUPOS_PROGRAMA.map(function(g){
+            var items = programaPorGrupo(g.perfil);
+            if (!items.length) return '';
+            return '<optgroup label="' + esc(g.titulo) + '">' +
+              items.map(function(u){
+                return '<option value="' + u.id + '"' + (u.id === borrador.usoId ? ' selected' : '') + '>' +
+                       u.icono + ' ' + esc(u.nombre) + '</option>';
+              }).join('') +
+            '</optgroup>';
           }).join('') +
-        '</div>' +
+        '</select>' +
       '</div>' +
 
       '<div class="fs-bloque">' +
@@ -721,12 +745,11 @@
   function enlazarResultado(){
     var raiz = dom.uno('#fs-resultado');
 
-    dom.enlazar(raiz, {
-      'click [data-uso]': function(ev, b){
-        borrador.uso = b.getAttribute('data-uso');
-        var paquete = FS.estado.obtener('entorno');
-        if (paquete) calcularYMostrar(paquete);
-      }
+    var selectorUso = dom.uno('#fs-usos-res', raiz);
+    if (selectorUso) selectorUso.addEventListener('change', function(ev){
+      borrador.usoId = ev.currentTarget.value;
+      var paquete = FS.estado.obtener('entorno');
+      if (paquete) calcularYMostrar(paquete);
     });
 
     dom.uno('#fs-nuevo', raiz).addEventListener('click', function(){
@@ -794,9 +817,9 @@
 
     dom.enlazar(dom.uno('#fs-usos', raiz), {
       'click [data-uso]': function(ev, b){
-        dom.todos('#fs-usos .fs-uso', raiz).forEach(function(o){ o.classList.remove('activa'); });
+        dom.todos('#fs-usos .fs-chip-uso', raiz).forEach(function(o){ o.classList.remove('activa'); });
         b.classList.add('activa');
-        borrador.uso = b.getAttribute('data-uso');
+        borrador.usoId = b.getAttribute('data-uso');
       }
     });
 
@@ -847,7 +870,13 @@
         borrador.direccion = previo.direccion || '';
         borrador.modo = previo.modo === 'mixto' ? 'mixto' : 'simple';
         borrador.usosMixto = previo.modo === 'mixto' ? (previo.porUso || []).map(function(u){ return u.id; }) : [];
-        if (previo.modo !== 'mixto') borrador.uso = previo.tipoNegocio || borrador.uso;
+        if (previo.modo !== 'mixto') {
+          // Estudios guardados antes de este catálogo solo traían el perfil
+          // (ej. "comercio"), no un uso concreto: se cae al primero de ese
+          // grupo para no dejar el selector sin nada elegido.
+          borrador.usoId = (previo.usoId && MOTOR.PROGRAMA_POR_ID[previo.usoId]) ? previo.usoId :
+            ((programaPorGrupo(previo.tipoNegocio)[0] || MOTOR.PROGRAMA[0]).id);
+        }
         fijarPredio(previo.lat, previo.lng, previo.direccion);
         if (previo.modo === 'mixto') pintarResultadoMixto(previo); else pintarResultado(previo);
         mostrar('fs-resultado');
@@ -926,5 +955,5 @@
     }
   });
 
-  window.FUXORASCOPE_ESTUDIO = { USOS: USOS };
+  window.FUXORASCOPE_ESTUDIO = { PROGRAMA: MOTOR.PROGRAMA };
 })();

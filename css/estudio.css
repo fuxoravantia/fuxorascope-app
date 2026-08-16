@@ -93,19 +93,14 @@
 .fs-opcion:hover{ border-color:var(--marca-clara); color:var(--texto); }
 .fs-opcion.activa{ background:var(--marca); border-color:var(--marca-clara); color:#fff; }
 
-/* Usos */
-.fs-usos{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-.fs-uso{
-  text-align:left; background:var(--fondo-2);
-  border:1.5px solid var(--borde); border-radius:var(--r-medio);
-  padding:12px 13px; cursor:pointer; font:inherit;
-  transition:border-color .14s, background .14s;
+/* Usos — catálogo completo (28), agrupado por familia */
+.fs-usos-grupo{ margin-bottom:13px; }
+.fs-usos-grupo:last-child{ margin-bottom:0; }
+.fs-usos-grupo-titulo{
+  display:block; font-size:11.5px; font-weight:700; letter-spacing:.5px;
+  text-transform:uppercase; color:var(--texto-3); margin-bottom:7px;
 }
-.fs-uso:hover{ border-color:var(--borde-vivo); background:#0d1f29; }
-.fs-uso.activa{ border-color:var(--marca-clara); background:rgba(22,179,201,.13); }
-.fs-uso-icono{ font-size:21px; display:block; line-height:1.2; }
-.fs-uso b{ display:block; color:var(--texto); font-size:14.5px; margin-top:4px; }
-.fs-uso small{ display:block; color:var(--texto-3); font-size:12px; line-height:1.4; margin-top:2px; }
+.fs-usos-grupo-chips{ display:flex; flex-wrap:wrap; gap:7px; }
 
 /* Combinador de varios usos */
 .fs-enlace-combinar{
@@ -202,12 +197,17 @@
 .fs-cambiar-uso{
   background:var(--fondo-2); border:1px solid var(--borde);
   border-radius:var(--r-medio); padding:13px; margin-bottom:18px;
+  display:flex; align-items:center; gap:11px; flex-wrap:wrap;
 }
-.fs-cambiar-uso > span{
-  display:block; font-size:12.5px; color:var(--texto-3);
-  margin-bottom:9px; font-weight:600;
+.fs-cambiar-uso label{
+  font-size:12.5px; color:var(--texto-3); font-weight:600; flex:0 0 auto;
 }
-.fs-cambiar-uso .fs-opcion{ font-size:12.5px; padding:7px 11px; }
+.fs-cambiar-uso select{
+  flex:1; min-width:180px; background:var(--panel-2);
+  border:1.5px solid var(--borde); border-radius:var(--r-chico);
+  color:var(--texto); font:inherit; font-size:13.5px; padding:8px 10px;
+}
+.fs-cambiar-uso select:focus{ outline:none; border-color:var(--marca-clara); }
 
 .fs-bloque{
   background:var(--fondo-2); border:1px solid var(--borde);
@@ -304,7 +304,6 @@
     display:inline-block; width:42px; height:4px;
     background:var(--borde-vivo); border-radius:3px;
   }
-  .fs-usos{ grid-template-columns:1fr; }
   .fs-veredicto{ flex-direction:column; text-align:center; gap:12px; }
 }
 
