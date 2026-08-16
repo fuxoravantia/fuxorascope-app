@@ -35,13 +35,33 @@
     comercio_ancla:'grandes superficies', comercio_barrio:'comercio de barrio',
     ferreteria_construccion:'ferretería y materiales', automotriz:'sector automotriz',
     servicio_personal:'servicios personales', financiero:'servicios financieros',
-    gastronomia:'gastronomía', hoteleria:'hotelería', entretenimiento:'entretenimiento',
-    turismo:'turismo y cultura', oficinas_cercanas:'oficinas',
+    gastronomia:'gastronomía', hoteleria:'hotelería', vida_nocturna:'vida nocturna',
+    deporte_recreacion:'deporte y recreación', cultura_turismo:'cultura y turismo',
+    oficinas_cercanas:'oficinas',
     salud_mayor:'hospitales y clínicas', salud_menor:'salud de proximidad',
     educacion_superior:'educación superior', educacion_basica:'colegios y jardines',
     institucional:'equipamiento institucional', espacio_publico:'espacio público',
     transporte_publico:'transporte y movilidad', otro:'otros usos'
   };
+
+  // ── Color por categoría ──────────────────────────────────────────────────
+  // Un mapa donde todo se ve del mismo color no distingue nada: esta paleta
+  // es la que colorea los puntos del mapa y su leyenda. Colores agrupados
+  // por familia (comercio en azules, salud en rojos/rosas, educación en
+  // morados, etc.) para que la lectura visual sea intuitiva, no arbitraria.
+  var COLOR_CATEGORIA = {
+    comercio_ancla:'#2f6fed', comercio_barrio:'#5b9bf5',
+    ferreteria_construccion:'#8a6d3b', automotriz:'#6b7280',
+    servicio_personal:'#c084fc', financiero:'#0ea5a5',
+    gastronomia:'#f97316', hoteleria:'#eab308', vida_nocturna:'#a21caf',
+    deporte_recreacion:'#22c55e', cultura_turismo:'#d946ef',
+    oficinas_cercanas:'#2563eb',
+    salud_mayor:'#dc2626', salud_menor:'#f87171',
+    educacion_superior:'#7c3aed', educacion_basica:'#a78bfa',
+    institucional:'#78716c', espacio_publico:'#16a34a',
+    transporte_publico:'#0891b2', otro:'#64748b'
+  };
+  function colorCategoria(cat){ return COLOR_CATEGORIA[cat] || COLOR_CATEGORIA.otro; }
 
   /* ── Lecturas por criterio ────────────────────────────────────────────
      Cada entrada dice: en qué criterio mira, con qué umbral se dispara, si
@@ -178,6 +198,8 @@
     narrar: narrar,
     NOMBRE_CRITERIO: NOMBRE_CRITERIO,
     NOMBRE_CATEGORIA: NOMBRE_CATEGORIA,
+    COLOR_CATEGORIA: COLOR_CATEGORIA,
+    colorCategoria: colorCategoria,
     NIVELES: NIVELES
   };
 })();

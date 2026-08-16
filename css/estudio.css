@@ -8,8 +8,30 @@
   overflow:hidden;
 }
 
-#fs-mapa{ flex:1; min-width:0; background:var(--fondo-2); }
+#fs-mapa{ flex:1; min-width:0; background:var(--fondo-2); position:relative; }
 #fs-mapa .leaflet-container{ background:var(--fondo-2); }
+
+/* Botón flotante sobre el mapa (capa de estratos DANE) */
+.fs-mapa-btn{
+  width:34px; height:34px; border:none; border-radius:4px;
+  background:#fff; color:#333; font-size:17px; cursor:pointer;
+  box-shadow:0 1px 5px rgba(0,0,0,.4); margin-top:8px;
+}
+.fs-mapa-btn.activo{ background:var(--marca-clara); }
+
+/* Leyendas flotantes sobre el mapa */
+.fs-leyenda{
+  background:rgba(10,21,29,.92); border:1px solid var(--borde-vivo);
+  border-radius:var(--r-chico); padding:10px 12px;
+  max-width:220px; max-height:38vh; overflow-y:auto;
+  box-shadow:var(--sombra); font-size:12px;
+}
+.fs-leyenda b{ display:block; color:var(--texto); margin-bottom:7px; font-size:12.5px; }
+.fs-leyenda span{ display:flex; align-items:center; gap:7px; color:var(--texto-2); padding:3px 0; }
+.fs-leyenda i{ width:11px; height:11px; border-radius:50%; flex:0 0 auto; display:block; }
+.fs-leyenda--estrato{
+  position:absolute; right:8px; bottom:8px; z-index:410;
+}
 
 /* Marcador del predio */
 .fs-pin span{
@@ -84,6 +106,62 @@
 .fs-uso-icono{ font-size:21px; display:block; line-height:1.2; }
 .fs-uso b{ display:block; color:var(--texto); font-size:14.5px; margin-top:4px; }
 .fs-uso small{ display:block; color:var(--texto-3); font-size:12px; line-height:1.4; margin-top:2px; }
+
+/* Combinador de varios usos */
+.fs-enlace-combinar{
+  display:block; width:100%; margin-top:9px;
+  background:none; border:1px dashed var(--borde-vivo); border-radius:var(--r-chico);
+  color:var(--marca-brillo); font:inherit; font-size:13px; font-weight:600;
+  padding:10px; cursor:pointer; text-align:center;
+}
+.fs-enlace-combinar:hover{ background:var(--fondo-2); }
+#fs-combinador{ margin-top:10px; }
+.fs-usos-chips{ display:flex; flex-wrap:wrap; gap:7px; margin:10px 0; }
+.fs-chip-uso{
+  background:var(--fondo-2); border:1.5px solid var(--borde);
+  color:var(--texto-2); font:inherit; font-size:12.5px; font-weight:600;
+  padding:7px 12px; border-radius:20px; cursor:pointer;
+}
+.fs-chip-uso:hover{ border-color:var(--borde-vivo); }
+.fs-chip-uso.activa{ background:var(--marca); border-color:var(--marca-clara); color:#fff; }
+
+/* Comparación por radio */
+.fs-comp-filas{ display:flex; gap:8px; }
+.fs-comp-fila{
+  flex:1; text-align:center; background:var(--panel-2);
+  border:1.5px solid var(--borde); border-radius:var(--r-chico); padding:10px 6px;
+}
+.fs-comp-fila.activa{ border-color:var(--marca-clara); background:rgba(22,179,201,.12); }
+.fs-comp-fila span{ display:block; font-size:11.5px; color:var(--texto-3); }
+.fs-comp-fila b{ display:block; font-size:20px; color:var(--texto); margin:3px 0; }
+.fs-comp-fila small{ color:var(--texto-2); font-size:11px; }
+
+/* Mezcla de usos */
+.fs-mezcla-usos{ margin-top:13px; padding-top:12px; border-top:1px solid var(--borde); }
+.fs-mezcla-usos p{ font-size:12.5px; color:var(--texto-2); margin-top:6px; }
+
+/* Desglose por uso (programa combinado) */
+.fs-desglose-usos{ display:flex; flex-wrap:wrap; gap:10px; }
+.fs-uso-mini{
+  flex:1; min-width:100px; text-align:center;
+  background:var(--panel-2); border:1.5px solid var(--tono);
+  border-radius:var(--r-chico); padding:11px 8px;
+}
+.fs-uso-mini-ico{ font-size:19px; display:block; }
+.fs-uso-mini b{ display:block; font-size:12px; color:var(--texto-2); margin:5px 0 3px; }
+.fs-uso-mini-indice{ font-size:22px; font-weight:800; color:var(--tono); }
+.fs-uso-mini small{ color:var(--texto-3); font-size:11px; }
+
+/* Compatibilidad entre usos */
+.fs-compat-fila{
+  padding:10px 0; border-bottom:1px solid var(--borde);
+}
+.fs-compat-fila:last-child{ border-bottom:none; }
+.fs-compat-par{ font-size:13.5px; color:var(--texto); font-weight:600; margin-bottom:4px; }
+.fs-estrellas{ color:#eab308; font-size:15px; letter-spacing:2px; }
+.fs-compat-fila p{ font-size:12.5px; color:var(--texto-2); margin-top:4px; line-height:1.5; }
+
+.fs-nota-pdf{ font-size:12px; color:var(--texto-3); border-top:1px dashed var(--borde); padding-top:10px; margin-top:4px; }
 
 /* Trabajando */
 .fs-trabajando{ text-align:center; padding:70px 20px; }
@@ -193,7 +271,7 @@
 /* Fichas de conteo */
 .fs-fichas{ display:flex; flex-wrap:wrap; gap:8px; }
 .fs-ficha{
-  background:var(--panel-2); border:1px solid var(--borde);
+  background:var(--panel-2); border:1px solid var(--borde); border-left:3px solid var(--tono, var(--marca-clara));
   border-radius:var(--r-chico); padding:8px 12px; min-width:92px;
 }
 .fs-ficha b{ display:block; font-size:19px; color:var(--marca-brillo); line-height:1.1; }

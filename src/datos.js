@@ -163,6 +163,29 @@
 
   var ESTRATO_NUM = { uno:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6 };
 
+  // Polígonos de manzana con su estrato, para pintarlos en el mapa — "los
+  // colores de las personas": dónde vive cada nivel socioeconómico, no solo
+  // el promedio del radio. ArcGIS entrega GeoJSON nativo con f=geojson, así
+  // que se pueden pasar directo a L.geoJSON sin conversión.
+  function estratoPoligonos(lat, lng, radioM){
+    var p = paramsRadio(lat, lng, radioM);
+    p.set('outFields', 'ESTRATO_PREDOMINANTE');
+    p.set('returnGeometry', 'true');
+    p.set('outSR', '4326');
+    p.set('f', 'geojson');
+    p.set('resultRecordCount', '700');
+    return pedir(BASE_DANE + CAPAS.estratoManzana + '?' + p.toString(), {}, 20000)
+      .then(function(gj){
+        if (!gj || !gj.features) return null;
+        gj.features.forEach(function(f){
+          var txt = String((f.properties || {}).ESTRATO_PREDOMINANTE || '').trim().toLowerCase();
+          f.properties.estratoNum = ESTRATO_NUM[txt] || 0;
+        });
+        return gj;
+      })
+      .catch(function(){ return null; });
+  }
+
   function estratoPredominante(lat, lng, radioM){
     var p = paramsRadio(lat, lng, radioM);
     p.set('outFields', 'ESTRATO_PREDOMINANTE');
@@ -285,10 +308,19 @@
     });
   }
 
+  // Solo el entorno construido, sin el censo — para ampliar el radio de una
+  // consulta ya hecha (comparar radios) sin repetir la parte de DANE, que no
+  // cambia con esto y solo agregaría espera.
+  function elementosEntorno(lat, lng, radioM, avisar){
+    return consultaOverpass(lat, lng, radioM, avisar).then(normalizarElementos);
+  }
+
   window.FUXORASCOPE_DATOS = {
     recolectar: recolectar,
     buscarDireccion: buscarDireccion,
     direccionDe: direccionDe,
+    estratoPoligonos: estratoPoligonos,
+    elementosEntorno: elementosEntorno,
     FUENTES: FUENTES
   };
 })();

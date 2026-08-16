@@ -24,9 +24,13 @@
 
   var borrador = {
     punto: null, direccion: '', radioM: FS.cfg.RADIO_INICIAL,
-    uso: 'comercio', nombre: ''
+    uso: 'comercio', nombre: '', modo: 'simple', usosMixto: []
   };
   var mapa = null, capaPredio = null, capaRadio = null, capaPuntos = null;
+  var capaEstratos = null, leyendaCtrl = null, botonEstratoBtn = null;
+
+  var COLOR_ESTRATO = { 1:'#7f1d1d', 2:'#c2410c', 3:'#ca8a04', 4:'#65a30d', 5:'#0d9488', 6:'#1d4ed8' };
+  function colorEstrato(n){ return COLOR_ESTRATO[n] || '#6b7280'; }
 
   // Nominatim devuelve la dirección completa hasta el país y el código postal.
   // Para encabezar un estudio sobran: con vía, barrio y comuna se identifica
@@ -72,13 +76,29 @@
 
           '<div class="fs-paso">' +
             '<h2><i>3</i> ¿Qué se quiere implantar?</h2>' +
-            '<div class="fs-usos" id="fs-usos">' +
+            '<div class="fs-usos" id="fs-usos" ' + (borrador.modo === 'mixto' ? 'hidden' : '') + '>' +
               USOS.map(function(u){
                 return '<button type="button" class="fs-uso' + (u.id === borrador.uso ? ' activa' : '') +
                   '" data-uso="' + u.id + '">' +
                   '<span class="fs-uso-icono">' + u.icono + '</span>' +
                   '<b>' + esc(u.nombre) + '</b><small>' + esc(u.pie) + '</small></button>';
               }).join('') +
+            '</div>' +
+            '<button type="button" id="fs-btn-combinar" class="fs-enlace-combinar" ' +
+              (borrador.modo === 'mixto' ? 'hidden' : '') + '>' +
+              '➕ Combinar varios usos en un mismo proyecto</button>' +
+
+            '<div id="fs-combinador" ' + (borrador.modo === 'mixto' ? '' : 'hidden') + '>' +
+              '<p class="fs-pista">Elige los usos que van en el mismo predio. El veredicto será el ' +
+                'promedio de cada uno, más qué tan bien conviven entre sí.</p>' +
+              '<div class="fs-usos-chips" id="fs-usos-chips">' +
+                MOTOR.PROGRAMA.map(function(u){
+                  return '<button type="button" class="fs-chip-uso' +
+                    (borrador.usosMixto.indexOf(u.id) !== -1 ? ' activa' : '') + '" data-uso-mixto="' + u.id + '">' +
+                    u.icono + ' ' + esc(u.nombre) + '</button>';
+                }).join('') +
+              '</div>' +
+              '<button type="button" id="fs-btn-un-uso" class="fs-enlace-combinar">↩️ Usar un solo uso</button>' +
             '</div>' +
           '</div>' +
 
@@ -126,7 +146,81 @@
     }).addTo(mapa);
     capaPuntos = L.layerGroup().addTo(mapa);
     mapa.on('click', function(ev){ fijarPredio(ev.latlng.lat, ev.latlng.lng); });
+
+    // Botón para superponer los polígonos de estrato del DANE — "los colores
+    // de las personas" que piden ver, no solo comercios y vías.
+    var CtrlEstrato = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function(){
+        var btn = L.DomUtil.create('button', 'fs-mapa-btn');
+        btn.type = 'button';
+        btn.innerHTML = '🎨';
+        btn.title = 'Ver estratos socioeconómicos del DANE';
+        L.DomEvent.disableClickPropagation(btn);
+        L.DomEvent.on(btn, 'click', alternarEstratos);
+        botonEstratoBtn = btn;
+        return btn;
+      }
+    });
+    new CtrlEstrato().addTo(mapa);
+
     setTimeout(function(){ mapa.invalidateSize(); }, 220);
+  }
+
+  function actualizarBotonEstrato(estado){
+    if (!botonEstratoBtn) return;
+    botonEstratoBtn.innerHTML = estado === 'cargando' ? '⏳' : estado === 'activo' ? '🎨' : '🎨';
+    botonEstratoBtn.classList.toggle('activo', estado === 'activo');
+  }
+
+  function alternarEstratos(){
+    if (capaEstratos) {
+      mapa.removeLayer(capaEstratos);
+      capaEstratos = null;
+      pintarLeyendaEstrato(false);
+      actualizarBotonEstrato('inactivo');
+      return;
+    }
+    if (!borrador.punto) { FS.aviso('Primero marca el predio en el mapa.', 'info'); return; }
+    actualizarBotonEstrato('cargando');
+    DATOS.estratoPoligonos(borrador.punto.lat, borrador.punto.lng, Math.max(borrador.radioM, 700))
+      .then(function(gj){
+        if (!gj || !gj.features || !gj.features.length) {
+          actualizarBotonEstrato('inactivo');
+          FS.aviso('El DANE no tiene polígonos de estrato para este sector.', 'info');
+          return;
+        }
+        capaEstratos = L.geoJSON(gj, {
+          style: function(f){
+            return { color:'#0b1a22', weight:1, fillColor: colorEstrato(f.properties.estratoNum), fillOpacity:.48 };
+          },
+          onEachFeature: function(f, layer){
+            var n = f.properties.estratoNum;
+            layer.bindTooltip('Estrato ' + (n || 'sin dato'));
+          }
+        }).addTo(mapa);
+        capaEstratos.bringToBack();
+        pintarLeyendaEstrato(true);
+        actualizarBotonEstrato('activo');
+      })
+      .catch(function(){
+        actualizarBotonEstrato('inactivo');
+        FS.aviso('No se pudo cargar la capa de estratos.', 'error');
+      });
+  }
+
+  function pintarLeyendaEstrato(mostrar){
+    var existente = dom.uno('#fs-leyenda-estrato');
+    if (existente) existente.remove();
+    if (!mostrar) return;
+    var div = document.createElement('div');
+    div.id = 'fs-leyenda-estrato';
+    div.className = 'fs-leyenda fs-leyenda--estrato';
+    div.innerHTML = '<b>Estrato predominante</b>' +
+      [1,2,3,4,5,6].map(function(n){
+        return '<span><i style="background:' + colorEstrato(n) + '"></i>Estrato ' + n + '</span>';
+      }).join('');
+    dom.uno('#fs-mapa').appendChild(div);
   }
 
   function fijarPredio(lat, lng, etiqueta){
@@ -163,20 +257,46 @@
 
   function pintarEntorno(elementos){
     capaPuntos.clearLayers();
-    elementos.slice(0, 700).forEach(function(el){
+    var presentes = {};
+    elementos.slice(0, 900).forEach(function(el){
       if (el.tags && el.tags.highway) return;
+      var cat = MOTOR.categoriaDe(el.tags);
+      presentes[cat] = true;
       L.circleMarker([el.lat, el.lng], {
-        radius:4, weight:1, color:'#0b6e8f', fillColor:'#7fe9f7', fillOpacity:.85
-      }).bindTooltip(el.nombre || MOTOR.categoriaDe(el.tags)).addTo(capaPuntos);
+        radius:4.5, weight:1, color:'#0b1a22',
+        fillColor: LECTURA.colorCategoria(cat), fillOpacity:.9
+      }).bindTooltip(el.nombre || LECTURA.NOMBRE_CATEGORIA[cat] || 'Sin clasificar').addTo(capaPuntos);
     });
+    pintarLeyendaCategorias(presentes);
+  }
+
+  function pintarLeyendaCategorias(presentes){
+    if (leyendaCtrl) { mapa.removeControl(leyendaCtrl); leyendaCtrl = null; }
+    var cats = Object.keys(presentes).sort(function(a, b){
+      return (LECTURA.NOMBRE_CATEGORIA[a] || a).localeCompare(LECTURA.NOMBRE_CATEGORIA[b] || b);
+    });
+    if (!cats.length) return;
+    leyendaCtrl = L.control({ position:'bottomleft' });
+    leyendaCtrl.onAdd = function(){
+      var div = L.DomUtil.create('div', 'fs-leyenda');
+      div.innerHTML = '<b>Qué es cada color</b>' + cats.map(function(c){
+        return '<span><i style="background:' + LECTURA.colorCategoria(c) + '"></i>' +
+               esc(LECTURA.NOMBRE_CATEGORIA[c] || c) + '</span>';
+      }).join('');
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    leyendaCtrl.addTo(mapa);
   }
 
   /* ═══ Análisis ═════════════════════════════════════════════════════════ */
   function refrescarBoton(){
     var b = dom.uno('#fs-analizar');
     if (!b) return;
-    b.disabled = !borrador.punto;
-    b.textContent = borrador.punto ? 'Analizar viabilidad' : 'Marca el predio para continuar';
+    var faltaUso = borrador.modo === 'mixto' && !borrador.usosMixto.length;
+    b.disabled = !borrador.punto || faltaUso;
+    b.textContent = !borrador.punto ? 'Marca el predio para continuar' :
+                     faltaUso ? 'Elige al menos un uso' : 'Analizar viabilidad';
   }
 
   function mostrar(cual){
@@ -201,6 +321,7 @@
     DATOS.recolectar(borrador.punto, borrador.radioM, avisar)
       .then(function(paquete){
         avisar('Calculando el índice de viabilidad…');
+        paquete._radioFetch = borrador.radioM;
         FS.estado.fijar({ entorno: paquete });
         pintarEntorno(paquete.elementos);
         calcularYMostrar(paquete);
@@ -218,29 +339,115 @@
   // Recalcula con lo que ya está en memoria: cambiar el uso no cuesta red.
   function calcularYMostrar(paquete){
     var censo = paquete.censo;
-    var resultado = MOTOR.calcularIndice({
-      elementos: paquete.elementos,
-      radioM: borrador.radioM,
-      centro: borrador.punto,
-      tipoNegocio: borrador.uso,
-      poblacion: censo ? censo.habitantes : 0
-    });
+    var poblacion = censo ? censo.habitantes : 0;
+    var mezclaUsos = null;
+    var estudio;
 
-    var uso = USOS.filter(function(u){ return u.id === borrador.uso; })[0] || USOS[0];
-    var estudio = Object.assign({}, resultado, {
-      nombre: borrador.nombre || (uso.nombre + ' · ' + (borrador.direccion || FS.cfg.CIUDAD)),
-      lat: borrador.punto.lat, lng: borrador.punto.lng,
-      direccion: borrador.direccion,
-      usoNombre: uso.nombre, usoIcono: uso.icono,
-      censo: censo,
-      procedencia: paquete.procedencia,
-      totalPuntos: paquete.elementos.length,
-      fecha: new Date().toISOString()
-    });
+    if (borrador.modo === 'mixto' && borrador.usosMixto.length) {
+      var programa = MOTOR.calcularPrograma({
+        elementos: paquete.elementos, radioM: borrador.radioM,
+        centro: borrador.punto, usos: borrador.usosMixto, poblacion: poblacion
+      });
+      // Se reutiliza calcularIndice en modo 'general' solo para obtener el
+      // inventario del entorno (porCategoria, vías) — el índice de esa
+      // llamada se descarta, el que manda es el promedio del programa.
+      var entorno = MOTOR.calcularIndice({
+        elementos: paquete.elementos, radioM: borrador.radioM,
+        centro: borrador.punto, tipoNegocio: 'general', poblacion: poblacion
+      });
+      mezclaUsos = MOTOR.indiceMezclaUsos(entorno.porCategoria);
+
+      estudio = {
+        modo: 'mixto',
+        indice: programa.indiceConjunto, nivel: programa.nivel,
+        porUso: programa.porUso, compatibilidad: programa.compatibilidad,
+        porCategoria: entorno.porCategoria, viasCercanas: entorno.viasCercanas,
+        radioM: borrador.radioM, mezclaUsos: mezclaUsos,
+        nombre: borrador.nombre || ('Programa combinado · ' + (borrador.direccion || FS.cfg.CIUDAD)),
+        lat: borrador.punto.lat, lng: borrador.punto.lng, direccion: borrador.direccion,
+        censo: censo, procedencia: paquete.procedencia,
+        totalPuntos: paquete.elementos.length, fecha: new Date().toISOString()
+      };
+    } else {
+      var resultado = MOTOR.calcularIndice({
+        elementos: paquete.elementos, radioM: borrador.radioM,
+        centro: borrador.punto, tipoNegocio: borrador.uso, poblacion: poblacion
+      });
+      mezclaUsos = MOTOR.indiceMezclaUsos(resultado.porCategoria);
+      var uso = USOS.filter(function(u){ return u.id === borrador.uso; })[0] || USOS[0];
+      estudio = Object.assign({}, resultado, {
+        modo: 'simple',
+        nombre: borrador.nombre || (uso.nombre + ' · ' + (borrador.direccion || FS.cfg.CIUDAD)),
+        lat: borrador.punto.lat, lng: borrador.punto.lng,
+        direccion: borrador.direccion,
+        usoNombre: uso.nombre, usoIcono: uso.icono,
+        censo: censo, procedencia: paquete.procedencia,
+        totalPuntos: paquete.elementos.length, mezclaUsos: mezclaUsos,
+        fecha: new Date().toISOString()
+      });
+    }
 
     FS.estado.fijar({ estudio: estudio });
-    pintarResultado(estudio);
+    if (estudio.modo === 'mixto') pintarResultadoMixto(estudio); else pintarResultado(estudio);
     mostrar('fs-resultado');
+  }
+
+  /* ═══ Comparación por radio (sin red si ya se tiene el radio máximo) ═══ */
+  function compararRadios(boton){
+    var paquete = FS.estado.obtener('entorno');
+    if (!paquete) return;
+    var maxR = Math.max.apply(null, FS.cfg.RADIOS);
+
+    function continuar(elementos){
+      var filas = FS.cfg.RADIOS.map(function(r){
+        var poblacion = paquete.censo ? paquete.censo.habitantes : 0;
+        var res;
+        if (borrador.modo === 'mixto' && borrador.usosMixto.length) {
+          res = MOTOR.calcularPrograma({
+            elementos: elementos, radioM: r, centro: borrador.punto,
+            usos: borrador.usosMixto, poblacion: poblacion
+          });
+          return { radioM:r, indice: res.indiceConjunto, nivel: res.nivel };
+        }
+        res = MOTOR.calcularIndice({
+          elementos: elementos, radioM: r, centro: borrador.punto,
+          tipoNegocio: borrador.uso, poblacion: poblacion
+        });
+        return { radioM:r, indice: res.indice, nivel: res.nivel };
+      });
+      pintarComparacionRadios(filas);
+    }
+
+    if ((paquete._radioFetch || 0) >= maxR) { continuar(paquete.elementos); return; }
+
+    var libre = boton ? FS.util.ocupar(boton, 'Ampliando…') : function(){};
+    DATOS.elementosEntorno(borrador.punto.lat, borrador.punto.lng, maxR).then(function(elementosGrandes){
+      libre();
+      paquete.elementos = elementosGrandes;
+      paquete._radioFetch = maxR;
+      FS.estado.fijar({ entorno: paquete });
+      continuar(elementosGrandes);
+    }).catch(function(){
+      libre();
+      FS.aviso('No se pudo ampliar la consulta para comparar todos los radios.', 'error');
+    });
+  }
+
+  function pintarComparacionRadios(filas){
+    var caja = dom.uno('#fs-comparacion-radios');
+    if (!caja) return;
+    caja.hidden = false;
+    caja.innerHTML = '<h3>Viabilidad según el radio</h3>' +
+      '<div class="fs-comp-filas">' +
+        filas.map(function(f){
+          var activa = f.radioM === borrador.radioM;
+          return '<div class="fs-comp-fila' + (activa ? ' activa' : '') + '">' +
+            '<span>' + (f.radioM >= 1000 ? (f.radioM / 1000) + ' km' : f.radioM + ' m') + '</span>' +
+            '<b>' + f.indice + '</b><small>' + esc(f.nivel) + '</small></div>';
+        }).join('') +
+      '</div>' +
+      '<p class="fs-pista">Usa la misma población del censo para los cuatro tamaños: una aproximación, ' +
+        'no una consulta independiente por radio.</p>';
   }
 
   /* ═══ Resultado ════════════════════════════════════════════════════════ */
@@ -286,10 +493,13 @@
         '</div>' +
         '<div class="fs-res-acciones">' +
           '<button type="button" class="fs-btn" id="fs-guardar">Guardar</button>' +
+          '<button type="button" class="fs-btn" id="fs-comparar-radios">📊 Comparar radios</button>' +
           '<button type="button" class="fs-btn" id="fs-pdf">Informe PDF</button>' +
           '<button type="button" class="fs-btn fs-btn--tenue" id="fs-nuevo">Nuevo estudio</button>' +
         '</div>' +
       '</div>' +
+
+      '<div class="fs-bloque" id="fs-comparacion-radios" hidden></div>' +
 
       '<div class="fs-veredicto" style="--tono:' + lec.color + '">' +
         medidor(e.indice, lec.color) +
@@ -331,10 +541,12 @@
         '<h3>Qué hay en el radio <small>' + FS.util.numero(e.totalPuntos) + ' puntos leídos</small></h3>' +
         '<div class="fs-fichas">' +
           cats.map(function(c){
-            return '<div class="fs-ficha"><b>' + e.porCategoria[c] + '</b>' +
+            return '<div class="fs-ficha" style="--tono:' + LECTURA.colorCategoria(c) + '">' +
+                   '<b>' + e.porCategoria[c] + '</b>' +
                    '<span>' + esc(LECTURA.NOMBRE_CATEGORIA[c] || c) + '</span></div>';
           }).join('') +
         '</div>' +
+        bloqueMezclaUsos(e.mezclaUsos) +
       '</div>' +
 
       '<div class="fs-procedencia">' +
@@ -347,6 +559,118 @@
       '</div>';
 
     enlazarResultado();
+  }
+
+  /* ═══ Resultado — programa de varios usos ═══════════════════════════════ */
+  function estrellas(n){
+    var llenas = '★'.repeat(n), vacias = '☆'.repeat(5 - n);
+    return '<span class="fs-estrellas">' + llenas + vacias + '</span>';
+  }
+
+  function pintarResultadoMixto(e){
+    var nivel = LECTURA.NIVELES[e.nivel] || LECTURA.NIVELES.Media;
+    var cats = Object.keys(e.porCategoria || {})
+      .filter(function(c){ return c !== 'otro'; })
+      .sort(function(a, b){ return e.porCategoria[b] - e.porCategoria[a]; });
+
+    dom.uno('#fs-resultado').innerHTML = '' +
+      '<div class="fs-res-cab">' +
+        '<div>' +
+          '<h2>' + esc(e.nombre) + '</h2>' +
+          '<p>🧩 Programa combinado · ' + e.porUso.length + ' usos · radio ' +
+            FS.util.numero(e.radioM) + ' m' + (e.direccion ? ' · ' + esc(e.direccion) : '') + '</p>' +
+        '</div>' +
+        '<div class="fs-res-acciones">' +
+          '<button type="button" class="fs-btn" id="fs-guardar">Guardar</button>' +
+          '<button type="button" class="fs-btn" id="fs-comparar-radios">📊 Comparar radios</button>' +
+          '<button type="button" class="fs-btn fs-btn--tenue" id="fs-nuevo">Nuevo estudio</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="fs-bloque" id="fs-comparacion-radios" hidden></div>' +
+
+      '<div class="fs-veredicto" style="--tono:' + nivel.color + '">' +
+        medidor(e.indice, nivel.color) +
+        '<div class="fs-veredicto-texto">' +
+          '<b>' + esc(nivel.titulo) + ' del conjunto</b>' +
+          '<p>Promedio de los ' + e.porUso.length + ' usos elegidos — cada uno se evalúa con su propio ' +
+            'perfil de criterios, y el veredicto conjunto es el punto medio entre todos.</p>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="fs-bloque">' +
+        '<h3>Cada uso por separado</h3>' +
+        '<div class="fs-desglose-usos">' +
+          e.porUso.map(function(u){
+            var n = LECTURA.NIVELES[u.nivel] || LECTURA.NIVELES.Media;
+            return '<div class="fs-uso-mini" style="--tono:' + n.color + '">' +
+              '<span class="fs-uso-mini-ico">' + u.icono + '</span>' +
+              '<b>' + esc(u.nombre) + '</b>' +
+              '<div class="fs-uso-mini-indice">' + u.indice + '</div>' +
+              '<small>' + esc(u.nivel) + '</small></div>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+
+      (e.compatibilidad.length ? '<div class="fs-bloque">' +
+        '<h3>Compatibilidad entre los usos elegidos</h3>' +
+        '<div class="fs-compatibilidad">' +
+          e.compatibilidad.map(function(c){
+            return '<div class="fs-compat-fila">' +
+              '<div class="fs-compat-par">' + esc(c.a) + ' + ' + esc(c.b) + '</div>' +
+              estrellas(c.estrellas) +
+              '<p>' + esc(c.motivo) + '</p></div>';
+          }).join('') +
+        '</div>' +
+      '</div>' : '') +
+
+      (e.censo ? bloqueCenso(e.censo) : '') +
+
+      '<div class="fs-bloque">' +
+        '<h3>Qué hay en el radio <small>' + FS.util.numero(e.totalPuntos) + ' puntos leídos</small></h3>' +
+        '<div class="fs-fichas">' +
+          cats.map(function(c){
+            return '<div class="fs-ficha" style="--tono:' + LECTURA.colorCategoria(c) + '">' +
+                   '<b>' + e.porCategoria[c] + '</b>' +
+                   '<span>' + esc(LECTURA.NOMBRE_CATEGORIA[c] || c) + '</span></div>';
+          }).join('') +
+        '</div>' +
+        bloqueMezclaUsos(e.mezclaUsos) +
+      '</div>' +
+
+      '<div class="fs-procedencia">' +
+        '<b>Con qué datos se hizo</b>' +
+        (e.procedencia || []).map(function(f){
+          return '<p>' + (f.disponible ? '✅' : '⚠️') + ' <b>' + esc(f.nombre) + '</b> — ' +
+                 esc(f.disponible ? f.aporta : 'no disponible en esta consulta') +
+                 '<br><small>' + esc(f.licencia) + '</small></p>';
+        }).join('') +
+        '<p class="fs-nota-pdf">📄 El informe en PDF para programas combinados llega en la próxima ' +
+          'versión — por ahora, evalúa cada uso por separado para exportarlo.</p>' +
+      '</div>';
+
+    enlazarResultadoMixto();
+  }
+
+  function enlazarResultadoMixto(){
+    var raiz = dom.uno('#fs-resultado');
+
+    dom.uno('#fs-nuevo', raiz).addEventListener('click', function(){
+      FS.estado.fijar({ estudio: null });
+      mostrar('fs-formulario');
+    });
+
+    var btnComparar = dom.uno('#fs-comparar-radios', raiz);
+    if (btnComparar) btnComparar.addEventListener('click', function(ev){ compararRadios(ev.currentTarget); });
+
+    dom.uno('#fs-guardar', raiz).addEventListener('click', function(ev){
+      var libre = FS.util.ocupar(ev.currentTarget, 'Guardando…');
+      FS.api.llamar('guardar_estudio', { estudio: FS.estado.obtener('estudio') }).then(function(res){
+        libre();
+        FS.aviso(res.ok ? 'Estudio guardado.' : (res.error || 'No se pudo guardar.'),
+                 res.ok ? 'exito' : 'error');
+      });
+    });
   }
 
   function bloqueCenso(c){
@@ -368,6 +692,17 @@
           }).join('') +
         '</div>' +
       '</div>';
+  }
+
+  function bloqueMezclaUsos(valor){
+    if (valor == null) return '';
+    var lectura = valor >= 65 ? 'sector mezclado: conviven varios tipos de actividad'
+                : valor >= 35 ? 'mezcla moderada: predomina un tipo de uso, con algo más alrededor'
+                : 'sector monofuncional: casi todo es el mismo tipo de actividad';
+    return '<div class="fs-mezcla-usos">' +
+      '<div class="fs-barra-riel"><span style="width:' + valor + '%"></span></div>' +
+      '<p><b>Mezcla de usos del sector: ' + valor + '/100</b> — ' + esc(lectura) + '.</p>' +
+    '</div>';
   }
 
   function listaSeñales(titulo, lista, tipo){
@@ -402,6 +737,9 @@
     dom.uno('#fs-pdf', raiz).addEventListener('click', function(){
       window.FUXORASCOPE_INFORME.abrir(FS.estado.obtener('estudio'));
     });
+
+    var btnComparar = dom.uno('#fs-comparar-radios', raiz);
+    if (btnComparar) btnComparar.addEventListener('click', function(ev){ compararRadios(ev.currentTarget); });
 
     dom.uno('#fs-guardar', raiz).addEventListener('click', function(ev){
       var libre = FS.util.ocupar(ev.currentTarget, 'Guardando…');
@@ -462,6 +800,32 @@
       }
     });
 
+    dom.uno('#fs-btn-combinar', raiz).addEventListener('click', function(){
+      borrador.modo = 'mixto';
+      dom.uno('#fs-usos', raiz).hidden = true;
+      dom.uno('#fs-btn-combinar', raiz).hidden = true;
+      dom.uno('#fs-combinador', raiz).hidden = false;
+      refrescarBoton();
+    });
+    dom.uno('#fs-btn-un-uso', raiz).addEventListener('click', function(){
+      borrador.modo = 'simple';
+      borrador.usosMixto = [];
+      dom.uno('#fs-usos', raiz).hidden = false;
+      dom.uno('#fs-btn-combinar', raiz).hidden = false;
+      dom.uno('#fs-combinador', raiz).hidden = true;
+      dom.todos('#fs-usos-chips .fs-chip-uso', raiz).forEach(function(c){ c.classList.remove('activa'); });
+      refrescarBoton();
+    });
+    dom.enlazar(dom.uno('#fs-usos-chips', raiz), {
+      'click [data-uso-mixto]': function(ev, b){
+        var id = b.getAttribute('data-uso-mixto');
+        var i = borrador.usosMixto.indexOf(id);
+        if (i === -1) borrador.usosMixto.push(id); else borrador.usosMixto.splice(i, 1);
+        b.classList.toggle('activa');
+        refrescarBoton();
+      }
+    });
+
     dom.uno('#fs-analizar', raiz).addEventListener('click', analizar);
     dom.uno('#fs-reintentar', raiz).addEventListener('click', analizar);
     dom.uno('#fs-volver-form', raiz).addEventListener('click', function(){ mostrar('fs-formulario'); });
@@ -481,8 +845,11 @@
         borrador.punto = { lat: previo.lat, lng: previo.lng };
         borrador.radioM = previo.radioM;
         borrador.direccion = previo.direccion || '';
+        borrador.modo = previo.modo === 'mixto' ? 'mixto' : 'simple';
+        borrador.usosMixto = previo.modo === 'mixto' ? (previo.porUso || []).map(function(u){ return u.id; }) : [];
+        if (previo.modo !== 'mixto') borrador.uso = previo.tipoNegocio || borrador.uso;
         fijarPredio(previo.lat, previo.lng, previo.direccion);
-        pintarResultado(previo);
+        if (previo.modo === 'mixto') pintarResultadoMixto(previo); else pintarResultado(previo);
         mostrar('fs-resultado');
       } else {
         refrescarBoton();
@@ -490,7 +857,7 @@
 
       return function(){
         if (mapa) { mapa.remove(); mapa = null; }
-        capaPredio = capaRadio = capaPuntos = null;
+        capaPredio = capaRadio = capaPuntos = capaEstratos = leyendaCtrl = botonEstratoBtn = null;
       };
     }
   });
@@ -525,7 +892,7 @@
             '<div class="fs-tarjeta-indice" style="--tono:' + tono + '"><b>' + e.indice + '</b><small>' + esc(e.nivel) + '</small></div>' +
             '<div class="fs-tarjeta-cuerpo">' +
               '<h3>' + esc(e.nombre) + '</h3>' +
-              '<p>' + esc(e.tipoNegocio) + ' · radio ' + FS.util.numero(e.radioM) + ' m · ' + esc(FS.util.fecha(e.creado)) + '</p>' +
+              '<p>' + esc(e.tipoNegocio || 'Programa combinado') + ' · radio ' + FS.util.numero(e.radioM) + ' m · ' + esc(FS.util.fecha(e.creado)) + '</p>' +
             '</div>' +
             '<div class="fs-tarjeta-acciones">' +
               '<button type="button" class="fs-btn" data-abrir>Abrir</button>' +
