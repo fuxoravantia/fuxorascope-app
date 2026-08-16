@@ -62,10 +62,10 @@
   }
 
   /* ═══ Fuente 1 · OpenStreetMap (entorno construido) ════════════════════ */
-  function consultaOverpass(lat, lng, radioM){
+  function consultaOverpass(lat, lng, radioM, avisar){
     var r = Math.round(radioM);
     var q =
-      '[out:json][timeout:25];(' +
+      '[out:json][timeout:60];(' +
         'nwr(around:' + r + ',' + lat + ',' + lng + ')[amenity];' +
         'nwr(around:' + r + ',' + lat + ',' + lng + ')[shop];' +
         'nwr(around:' + r + ',' + lat + ',' + lng + ')[office];' +
@@ -77,15 +77,32 @@
             ')[highway~"^(trunk|primary|secondary|tertiary)$"];' +
       ');out center tags;';
 
-    // Se prueban los espejos en orden: si el primero está saturado, sigue el otro.
+    // Se prueban los espejos en orden hasta que uno responda. Overpass es
+    // gratuito y se satura, así que un fallo del primero es lo normal, no la
+    // excepción: se avisa en pantalla para que la espera no parezca un cuelgue.
     var espejos = CFG.OVERPASS.slice();
+    var avisarPaso = avisar || function(){};
+
     function intentar(i){
-      if (i >= espejos.length) return Promise.reject(new Error('Sin espejos disponibles'));
+      if (i >= espejos.length) {
+        return Promise.reject(new Error('Ningún servidor de mapas respondió.'));
+      }
+      if (i > 0) {
+        avisarPaso('El servidor de mapas está ocupado. Probando con otro (' +
+                   (i + 1) + ' de ' + espejos.length + ')…');
+      }
       return pedir(espejos[i], {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'data=' + encodeURIComponent(q)
-      }).catch(function(){ return intentar(i + 1); });
+      }, CFG.ESPERA_OVERPASS_MS)
+        .then(function(d){
+          // Overpass puede responder 200 con un cuerpo sin elementos cuando
+          // rechaza la consulta por carga. Eso también es un fallo.
+          if (!d || !d.elements) throw new Error('Respuesta vacía');
+          return d;
+        })
+        .catch(function(){ return intentar(i + 1); });
     }
     return intentar(0);
   }
@@ -222,8 +239,8 @@
       aporta: 'Entorno construido: comercio, salud, educación, vías y transporte.',
       licencia: 'ODbL · © colaboradores de OpenStreetMap',
       critica: true,   // sin esta fuente no hay estudio posible
-      traer: function(punto, radioM){
-        return consultaOverpass(punto.lat, punto.lng, radioM).then(normalizarElementos);
+      traer: function(punto, radioM, avisar){
+        return consultaOverpass(punto.lat, punto.lng, radioM, avisar).then(normalizarElementos);
       }
     },
     {
@@ -232,7 +249,7 @@
       aporta: 'Población, viviendas y estrato socioeconómico del sector.',
       licencia: 'Datos abiertos · DANE, publicados por Esri Colombia',
       critica: false,  // si falla, el estudio sigue sin cifras de población
-      traer: function(punto, radioM){ return censo(punto.lat, punto.lng, radioM); }
+      traer: function(punto, radioM, avisar){ return censo(punto.lat, punto.lng, radioM); }
     }
   ];
 
@@ -243,7 +260,7 @@
     avisar('Consultando el entorno del predio…');
 
     var trabajos = FUENTES.map(function(f){
-      return f.traer(punto, radioM)
+      return f.traer(punto, radioM, avisar)
         .then(function(datos){ return { id:f.id, ok: datos != null, datos: datos }; })
         .catch(function(err){ return { id:f.id, ok:false, datos:null, error:String(err) }; });
     });

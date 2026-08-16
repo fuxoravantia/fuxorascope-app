@@ -2,9 +2,11 @@
    Pantallas de cuenta: entrar, registro, confirmar, recuperar. */
 
 .fs-acceso{
-  min-height:100vh;
+  min-height:var(--pantalla);
   display:flex; align-items:center; justify-content:center;
-  gap:34px; padding:40px 22px;
+  gap:34px;
+  padding:calc(40px + env(safe-area-inset-top, 0px)) 22px
+          calc(40px + env(safe-area-inset-bottom, 0px));
   background:
     radial-gradient(1000px 600px at 12% -8%, rgba(11,110,143,.34), transparent 60%),
     radial-gradient(760px 520px at 92% 108%, rgba(22,179,201,.20), transparent 62%),

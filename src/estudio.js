@@ -28,6 +28,13 @@
   };
   var mapa = null, capaPredio = null, capaRadio = null, capaPuntos = null;
 
+  // Nominatim devuelve la dirección completa hasta el país y el código postal.
+  // Para encabezar un estudio sobran: con vía, barrio y comuna se identifica
+  // el predio, y cabe en una línea tanto en el panel como en el informe.
+  function direccionCorta(etiqueta){
+    return String(etiqueta || '').split(',').slice(0, 3).join(',').trim();
+  }
+
   /* ═══ Plantilla ════════════════════════════════════════════════════════ */
   function plantilla(){
     return '' +
@@ -89,6 +96,18 @@
         '<div class="fs-trabajando" id="fs-trabajando" hidden>' +
           '<div class="fs-girando fs-girando--grande"></div>' +
           '<p id="fs-trabajando-texto">Consultando el entorno del predio…</p>' +
+          '<p class="fs-pista">Puede tardar hasta un minuto: los servidores de mapas ' +
+            'son gratuitos y a veces están ocupados.</p>' +
+        '</div>' +
+
+        '<div class="fs-fallo" id="fs-fallo" hidden>' +
+          '<div class="fs-fallo-icono">⚠️</div>' +
+          '<h2>No se pudo completar el estudio</h2>' +
+          '<p id="fs-fallo-texto"></p>' +
+          '<div class="fs-fallo-acciones">' +
+            '<button type="button" class="fs-btn fs-btn--principal" id="fs-reintentar">Reintentar</button>' +
+            '<button type="button" class="fs-btn fs-btn--tenue" id="fs-volver-form">Cambiar el predio</button>' +
+          '</div>' +
         '</div>' +
 
         '<div class="fs-resultado" id="fs-resultado" hidden></div>' +
@@ -121,8 +140,8 @@
 
     var pista = dom.uno('#fs-pista-predio');
     if (etiqueta) {
-      borrador.direccion = etiqueta;
-      if (pista) pista.textContent = '📍 ' + etiqueta;
+      borrador.direccion = direccionCorta(etiqueta);
+      if (pista) pista.textContent = '📍 ' + borrador.direccion;
     } else {
       if (pista) pista.textContent = '📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' — buscando dirección…';
       DATOS.direccionDe(lat, lng).then(function(d){
@@ -161,7 +180,7 @@
   }
 
   function mostrar(cual){
-    ['fs-formulario','fs-trabajando','fs-resultado'].forEach(function(id){
+    ['fs-formulario','fs-trabajando','fs-fallo','fs-resultado'].forEach(function(id){
       var el = dom.uno('#' + id);
       if (el) el.hidden = (id !== cual);
     });
@@ -187,8 +206,12 @@
         calcularYMostrar(paquete);
       })
       .catch(function(err){
-        mostrar('fs-formulario');
-        FS.aviso(err.message || 'No pudimos completar el estudio.', 'error');
+        // El fallo se queda en pantalla con un botón para reintentar. Un
+        // aviso que se desvanece dejaba al usuario de vuelta en el formulario
+        // sin saber qué pasó ni qué hacer.
+        dom.uno('#fs-fallo-texto').textContent = (err && err.message) ||
+          'No pudimos leer el entorno del predio.';
+        mostrar('fs-fallo');
       });
   }
 
@@ -440,6 +463,8 @@
     });
 
     dom.uno('#fs-analizar', raiz).addEventListener('click', analizar);
+    dom.uno('#fs-reintentar', raiz).addEventListener('click', analizar);
+    dom.uno('#fs-volver-form', raiz).addEventListener('click', function(){ mostrar('fs-formulario'); });
   }
 
   /* ═══ Registro de la vista ═════════════════════════════════════════════ */

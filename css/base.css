@@ -55,11 +55,16 @@ body{
 a{ color:var(--marca-brillo); text-decoration:none; }
 a:hover{ text-decoration:underline; }
 
-/* ═══ Cabecera ══════════════════════════════════════════════════════════ */
+/* ═══ Cabecera ══════════════════════════════════════════════════════════
+   Instalada como app en iPhone, la cabecera queda debajo de la muesca si no
+   se respeta el área segura. El alto total se recalcula con esa franja para
+   que el resto del cálculo de pantalla siga cuadrando. */
 #fs-cabecera{
-  height:var(--cabecera-alto);
+  height:calc(var(--cabecera-alto) + env(safe-area-inset-top, 0px));
+  padding-top:env(safe-area-inset-top, 0px);
   display:flex; align-items:center; gap:18px;
-  padding:0 18px;
+  padding-left:max(18px, env(safe-area-inset-left, 0px));
+  padding-right:max(18px, env(safe-area-inset-right, 0px));
   background:var(--fondo-2);
   border-bottom:1px solid var(--borde);
   position:sticky; top:0; z-index:60;
@@ -81,15 +86,40 @@ a:hover{ text-decoration:underline; }
 
 .fs-cab-cuenta{ display:flex; align-items:center; gap:11px; }
 .fs-cab-nombre{ color:var(--texto-2); font-size:14px; }
+
+/* En móvil la cabecera pasa a dos filas: marca y cuenta arriba, navegación
+   abajo ocupando todo el ancho. Con una sola fila los tres enlaces se
+   partían en dos líneas cada uno y el encabezado se comía la pantalla. */
+@media (max-width:620px){
+  :root{ --cabecera-alto: 104px; }
+  #fs-cabecera{ flex-wrap:wrap; gap:0 10px; align-content:center; }
+  .fs-cab-marca{ order:1; }
+  .fs-cab-cuenta{ order:2; margin-left:auto; }
+  .fs-cab-nav{
+    order:3; width:100%; margin-right:0; gap:6px;
+    border-top:1px solid var(--borde); padding-top:7px; margin-top:5px;
+  }
+  .fs-cab-nav a{
+    flex:1; text-align:center; padding:8px 6px; font-size:13px; white-space:nowrap;
+  }
+  .fs-cab-nombre{ font-size:13px; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+}
 .fs-etiqueta-demo{
   background:#4a3a08; color:#ffd977; border:1px solid #7a6111;
   font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
   padding:2px 8px; border-radius:20px;
 }
 
-#fs-vista{ min-height:calc(100vh - var(--cabecera-alto)); }
+/* Alto real de pantalla. En móvil, 100vh incluye la barra del navegador que
+   se retrae al hacer scroll, así que la app queda más alta que la ventana y
+   se corta por abajo. 100dvh sigue el alto visible de verdad; el 100vh queda
+   como respaldo para navegadores viejos. */
+:root{ --pantalla: 100vh; }
+@supports (height: 100dvh){ :root{ --pantalla: 100dvh; } }
+
+#fs-vista{ min-height:calc(var(--pantalla) - var(--cabecera-alto) - env(safe-area-inset-top, 0px)); }
 body:not([data-vista]) #fs-vista,
-#fs-cabecera[hidden] + #fs-vista{ min-height:100vh; }
+#fs-cabecera[hidden] + #fs-vista{ min-height:var(--pantalla); }
 
 /* ═══ Botones ═══════════════════════════════════════════════════════════ */
 .fs-btn{
