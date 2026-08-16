@@ -35,6 +35,38 @@
            'aparece en pantalla en vez de llegar por correo.</p>';
   }
 
+  // Acceso de un clic para demostraciones: entra a una cuenta fija sin pedir
+  // correo ni código. Solo tiene sentido mientras no hay backend real — con
+  // servidor propio las cuentas deben ser cuentas de verdad.
+  var CORREO_INVITADO = 'demo@fuxorascope.local';
+  var CLAVE_INVITADA = 'demo12345demo';
+
+  function botonInvitado(){
+    if (FS.cfg.hayBackend()) return '';
+    return '<button type="button" id="fs-btn-invitado" class="fs-btn fs-btn--grande fs-btn--invitado">' +
+             '⚡ Entrar para la demostración (sin registro)' +
+           '</button>';
+  }
+
+  function entrarInvitado(boton){
+    var libre = FS.util.ocupar(boton, 'Entrando…');
+    FS.api.llamar('entrar', { correo:CORREO_INVITADO, clave:CLAVE_INVITADA }).then(function(res){
+      if (res.ok) { libre(); return entrarConSesion(res); }
+      // Primera vez: la cuenta invitada todavía no existe, se crea y confirma sola.
+      FS.api.llamar('registrar', {
+        correo:CORREO_INVITADO, clave:CLAVE_INVITADA, nombre:'Invitado',
+        empresa:'Demostración FuxoraScope'
+      }).then(function(reg){
+        if (!reg.ok) { libre(); return FS.aviso(reg.error || 'No se pudo entrar.', 'error'); }
+        FS.api.llamar('confirmar', { correo:CORREO_INVITADO, codigo:reg.codigo_demo }).then(function(con){
+          libre();
+          if (con.ok) return entrarConSesion(con);
+          FS.aviso(con.error || 'No se pudo entrar.', 'error');
+        });
+      });
+    });
+  }
+
   function campo(id, etiqueta, tipo, extra){
     extra = extra || {};
     return '' +
@@ -86,6 +118,8 @@
           marca() +
           '<h1>Entra a tu cuenta</h1>' +
           '<p class="fs-acceso-bajada">Estudios de viabilidad para constructoras e inversionistas.</p>' +
+          botonInvitado() +
+          (FS.cfg.hayBackend() ? '' : '<div class="fs-acceso-separador"><span>o entra con una cuenta</span></div>') +
           avisoDemo() +
           '<form id="fs-form-entrar" novalidate>' +
             '<p class="fs-error-general" hidden></p>' +
@@ -111,6 +145,9 @@
       '</div>';
     },
     montar: function(raiz){
+      var invitado = dom.uno('#fs-btn-invitado', raiz);
+      if (invitado) invitado.addEventListener('click', function(ev){ entrarInvitado(ev.currentTarget); });
+
       var form = dom.uno('#fs-form-entrar', raiz);
       form.addEventListener('submit', function(ev){
         ev.preventDefault();

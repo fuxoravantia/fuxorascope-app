@@ -32,6 +32,22 @@
 .fs-acceso-bajada{ color:var(--texto-2); font-size:14.5px; margin-bottom:22px; }
 .fs-acceso-bajada b{ color:var(--texto); }
 
+.fs-btn--invitado{
+  width:100%; padding:14px; font-size:15px; margin-bottom:16px;
+  background:linear-gradient(135deg, #7a4a0f, #c98a10);
+  border-color:transparent; color:#1a1000; font-weight:700;
+}
+.fs-btn--invitado:hover{ filter:brightness(1.08); background:linear-gradient(135deg, #7a4a0f, #c98a10); }
+
+.fs-acceso-separador{
+  display:flex; align-items:center; gap:11px;
+  color:var(--texto-3); font-size:12.5px;
+  margin-bottom:16px;
+}
+.fs-acceso-separador:before, .fs-acceso-separador:after{
+  content:""; flex:1; height:1px; background:var(--borde);
+}
+
 .fs-nota-demo{
   background:#3a2e07; border:1px solid #6d5810; color:#ffe08a;
   border-radius:var(--r-chico); padding:11px 13px;
