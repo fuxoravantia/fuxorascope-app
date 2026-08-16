@@ -492,6 +492,50 @@
       '</div>';
   }
 
+  // Donut de la mezcla de usos del radio, con los mismos colores que ya usa
+  // el mapa y su leyenda — para que el color signifique lo mismo en todas
+  // partes de la pantalla, no solo en el mapa.
+  function donutCategorias(porCategoria, censo){
+    var cats = Object.keys(porCategoria || {})
+      .filter(function(c){ return c !== 'otro' && porCategoria[c] > 0; })
+      .sort(function(a, b){ return porCategoria[b] - porCategoria[a]; });
+    var total = cats.reduce(function(s, c){ return s + porCategoria[c]; }, 0);
+    if (!total) return '';
+
+    var r = 54, circ = 2 * Math.PI * r, acumulado = 0;
+    var segmentos = cats.map(function(c){
+      var largo = circ * (porCategoria[c] / total);
+      var svg = '<circle cx="70" cy="70" r="' + r + '" fill="none" stroke="' + LECTURA.colorCategoria(c) +
+        '" stroke-width="21" stroke-dasharray="' + largo.toFixed(1) + ' ' + (circ - largo).toFixed(1) +
+        '" stroke-dashoffset="' + (-acumulado).toFixed(1) + '" transform="rotate(-90 70 70)"/>';
+      acumulado += largo;
+      return svg;
+    }).join('');
+
+    var leyenda = cats.slice(0, 10).map(function(c){
+      var pct = Math.round(porCategoria[c] / total * 100);
+      return '<div class="fs-donut-fila"><i style="background:' + LECTURA.colorCategoria(c) + '"></i>' +
+        '<span>' + esc(LECTURA.NOMBRE_CATEGORIA[c] || c) + '</span><b>' + pct + '%</b></div>';
+    }).join('');
+
+    var notaVivienda = (censo && censo.viviendas)
+      ? '<p class="fs-pista">🏠 El mapa no cuenta casas una por una: el número de viviendas del sector ' +
+        '(' + FS.util.numero(censo.viviendas) + ') viene del Censo del DANE, no de este gráfico.</p>'
+      : '';
+
+    return '' +
+      '<div class="fs-donut-envoltorio">' +
+        '<svg viewBox="0 0 140 140" class="fs-donut" role="img" aria-label="Distribución de usos en el radio">' +
+          '<circle cx="70" cy="70" r="' + r + '" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="21"/>' +
+          segmentos +
+          '<text x="70" y="66" text-anchor="middle" class="fs-donut-num">' + total + '</text>' +
+          '<text x="70" y="83" text-anchor="middle" class="fs-donut-pie">PUNTOS</text>' +
+        '</svg>' +
+        '<div class="fs-donut-leyenda">' + leyenda + '</div>' +
+      '</div>' +
+      notaVivienda;
+  }
+
   function pintarResultado(e){
     var lec = LECTURA.narrar(e, e.censo);
     var fuerzas = lec.señales.filter(function(s){ return s.tipo === 'fuerza'; });
@@ -563,6 +607,7 @@
 
       '<div class="fs-bloque">' +
         '<h3>Qué hay en el radio <small>' + FS.util.numero(e.totalPuntos) + ' puntos leídos</small></h3>' +
+        donutCategorias(e.porCategoria, e.censo) +
         '<div class="fs-fichas">' +
           cats.map(function(c){
             return '<div class="fs-ficha" style="--tono:' + LECTURA.colorCategoria(c) + '">' +
@@ -659,6 +704,7 @@
 
       '<div class="fs-bloque">' +
         '<h3>Qué hay en el radio <small>' + FS.util.numero(e.totalPuntos) + ' puntos leídos</small></h3>' +
+        donutCategorias(e.porCategoria, e.censo) +
         '<div class="fs-fichas">' +
           cats.map(function(c){
             return '<div class="fs-ficha" style="--tono:' + LECTURA.colorCategoria(c) + '">' +

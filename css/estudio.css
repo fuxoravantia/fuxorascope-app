@@ -273,6 +273,17 @@
 .fs-tabla-fila span{ color:var(--texto-3); }
 .fs-tabla-fila b{ color:var(--texto); }
 
+/* Donut de mezcla de usos */
+.fs-donut-envoltorio{ display:flex; align-items:center; gap:18px; margin-bottom:13px; flex-wrap:wrap; }
+.fs-donut{ width:118px; height:118px; flex:0 0 118px; }
+.fs-donut-num{ font-size:26px; font-weight:800; fill:var(--texto); }
+.fs-donut-pie{ font-size:9px; fill:var(--texto-3); letter-spacing:1.4px; }
+.fs-donut-leyenda{ flex:1; min-width:150px; display:flex; flex-direction:column; gap:5px; }
+.fs-donut-fila{ display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.fs-donut-fila i{ width:10px; height:10px; border-radius:50%; flex:0 0 auto; display:block; }
+.fs-donut-fila span{ color:var(--texto-2); flex:1; }
+.fs-donut-fila b{ color:var(--texto); font-weight:700; }
+
 /* Fichas de conteo */
 .fs-fichas{ display:flex; flex-wrap:wrap; gap:8px; }
 .fs-ficha{
