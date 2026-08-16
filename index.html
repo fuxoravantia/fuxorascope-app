@@ -21,9 +21,9 @@
   <meta name="apple-mobile-web-app-title" content="FuxoraScope" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="css/base.css?v=3" />
-  <link rel="stylesheet" href="css/acceso.css?v=3" />
-  <link rel="stylesheet" href="css/estudio.css?v=3" />
+  <link rel="stylesheet" href="css/base.css?v=4" />
+  <link rel="stylesheet" href="css/acceso.css?v=4" />
+  <link rel="stylesheet" href="css/estudio.css?v=4" />
 </head>
 <body>
 
@@ -41,15 +41,15 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <script src="src/config.js?v=3"></script>
-  <script src="src/nucleo.js?v=3"></script>
-  <script src="src/motor.js?v=3"></script>
-  <script src="src/lectura.js?v=3"></script>
-  <script src="src/datos.js?v=3"></script>
-  <script src="src/informe.js?v=3"></script>
-  <script src="src/acceso.js?v=3"></script>
-  <script src="src/estudio.js?v=3"></script>
-  <script src="src/app.js?v=3"></script>
+  <script src="src/config.js?v=4"></script>
+  <script src="src/nucleo.js?v=4"></script>
+  <script src="src/motor.js?v=4"></script>
+  <script src="src/lectura.js?v=4"></script>
+  <script src="src/datos.js?v=4"></script>
+  <script src="src/informe.js?v=4"></script>
+  <script src="src/acceso.js?v=4"></script>
+  <script src="src/estudio.js?v=4"></script>
+  <script src="src/app.js?v=4"></script>
 
   <script>
     // Registro del service worker: es lo que permite instalar la app en el
@@ -57,7 +57,21 @@
     // que es lo que exige el navegador.
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function(){
-        navigator.serviceWorker.register('service-worker.js').catch(function(){});
+        navigator.serviceWorker.register('service-worker.js').then(function(reg){
+          // Revisa si hay versión nueva cada vez que se abre la app, no
+          // solo cuando el navegador decide hacerlo por su cuenta — así una
+          // demostración no corre con código de ayer sin que nadie lo note.
+          reg.update();
+          reg.addEventListener('updatefound', function(){
+            var nuevo = reg.installing;
+            if (!nuevo) return;
+            nuevo.addEventListener('statechange', function(){
+              if (nuevo.state === 'installed' && navigator.serviceWorker.controller) {
+                location.reload();
+              }
+            });
+          });
+        }).catch(function(){});
       });
     }
   </script>
