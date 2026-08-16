@@ -586,9 +586,10 @@
   }
 
   /* ═══ Resultado — programa de varios usos ═══════════════════════════════ */
-  function estrellas(n){
-    var llenas = '★'.repeat(n), vacias = '☆'.repeat(5 - n);
-    return '<span class="fs-estrellas">' + llenas + vacias + '</span>';
+  // Color del badge según el puntaje de compatibilidad (0-100), no según
+  // una tabla de niveles fija — se deriva del mismo número que ya trae `c`.
+  function colorCompat(puntaje){
+    return puntaje >= 70 ? '#1f9d55' : puntaje >= 45 ? '#16b3c9' : puntaje >= 20 ? '#c98a10' : '#c0392b';
   }
 
   function pintarResultadoMixto(e){
@@ -638,11 +639,17 @@
 
       (e.compatibilidad.length ? '<div class="fs-bloque">' +
         '<h3>Compatibilidad entre los usos elegidos</h3>' +
+        '<p class="fs-nota-pdf" style="border:none;padding-top:0">Se calcula por cercanía de horario, ' +
+          'impacto y público entre cada pareja — no es un concepto de uso del suelo oficial, ' +
+          'eso solo lo emite Planeación Municipal.</p>' +
         '<div class="fs-compatibilidad">' +
           e.compatibilidad.map(function(c){
             return '<div class="fs-compat-fila">' +
-              '<div class="fs-compat-par">' + esc(c.a) + ' + ' + esc(c.b) + '</div>' +
-              estrellas(c.estrellas) +
+              '<div class="fs-compat-cab">' +
+                '<div class="fs-compat-par">' + esc(c.a) + ' + ' + esc(c.b) + '</div>' +
+                '<span class="fs-compat-badge" style="--tono:' + colorCompat(c.puntaje) + '">' +
+                  esc(c.etiqueta) + ' · ' + c.puntaje + '</span>' +
+              '</div>' +
               '<p>' + esc(c.motivo) + '</p></div>';
           }).join('') +
         '</div>' +

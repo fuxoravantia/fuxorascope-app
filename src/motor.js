@@ -170,68 +170,122 @@
   // distinto: son los usos que un cliente puede PROPONER para su propio
   // predio y combinar en un mismo proyecto (ej. comercio + gastronomía en
   // un mismo edificio). Cada uno se apoya en un PERFIL de pesos ya definido
-  // arriba — no crea una familia de cálculo nueva por cada uso.
+  // arriba para el índice — y en cuatro atributos propios (ver más abajo)
+  // que alimentan la compatibilidad entre usos.
+  //
+  // flujo:       cuánto público atrae (0 = casi nadie, 1 = mucho tráfico)
+  // horario:     franja en la que opera (0 = diurno, 1 = nocturno)
+  // ruido:       impacto sobre el vecino (0 = silencioso, 1 = alto impacto)
+  // formalidad:  ritmo de la actividad (0 = rápido/casual, 1 = pausado/serio)
   const PROGRAMA = [
-    { id:'local_comercial', nombre:'Local comercial',     icono:'🛍️', perfil:'comercio' },
-    { id:'supermercado',    nombre:'Supermercado',        icono:'🛒', perfil:'comercio' },
-    { id:'ferreteria',      nombre:'Ferretería',          icono:'🔧', perfil:'comercio' },
-    { id:'taller',          nombre:'Taller automotriz',   icono:'🔩', perfil:'comercio' },
-    { id:'peluqueria',      nombre:'Peluquería / spa',    icono:'💇', perfil:'comercio' },
-    { id:'lavanderia',      nombre:'Lavandería',          icono:'🧺', perfil:'comercio' },
-    { id:'restaurante',     nombre:'Restaurante',         icono:'🍽️', perfil:'gastronomia' },
-    { id:'cafeteria',       nombre:'Cafetería',           icono:'☕', perfil:'gastronomia' },
-    { id:'bar',             nombre:'Bar',                 icono:'🍹', perfil:'gastronomia' },
-    { id:'discoteca',       nombre:'Discoteca / rumba',   icono:'🎶', perfil:'gastronomia' },
-    { id:'panaderia',       nombre:'Panadería',           icono:'🥖', perfil:'gastronomia' },
-    { id:'consultorio',     nombre:'Consultorio médico',  icono:'🩺', perfil:'salud' },
-    { id:'drogueria',       nombre:'Droguería',           icono:'💊', perfil:'salud' },
-    { id:'odontologia',     nombre:'Consultorio odontológico', icono:'🦷', perfil:'salud' },
-    { id:'veterinaria',     nombre:'Veterinaria',         icono:'🐾', perfil:'salud' },
-    { id:'oficina',         nombre:'Oficina',             icono:'💼', perfil:'oficinas' },
-    { id:'coworking',       nombre:'Coworking',           icono:'🧑‍💻', perfil:'oficinas' },
-    { id:'banco',           nombre:'Banco / financiero',  icono:'🏦', perfil:'oficinas' },
-    { id:'notaria',         nombre:'Notaría / trámites',  icono:'📋', perfil:'oficinas' },
-    { id:'hotel',           nombre:'Hotel',               icono:'🏨', perfil:'general' },
-    { id:'gimnasio',        nombre:'Gimnasio',            icono:'🏋️', perfil:'general' },
-    { id:'colegio',         nombre:'Colegio',             icono:'🏫', perfil:'general' },
-    { id:'guarderia',       nombre:'Guardería',           icono:'🧸', perfil:'general' },
-    { id:'academia',        nombre:'Academia / instituto',icono:'🎓', perfil:'general' },
-    { id:'parque',          nombre:'Parque / recreación', icono:'🌳', perfil:'general' },
-    { id:'iglesia',         nombre:'Templo / iglesia',    icono:'⛪', perfil:'general' },
-    { id:'bodega',          nombre:'Bodega / almacenamiento', icono:'📦', perfil:'general' },
-    { id:'vivienda',        nombre:'Vivienda',            icono:'🏠', perfil:'general' }
+    { id:'local_comercial', nombre:'Local comercial',     icono:'🛍️', perfil:'comercio',
+      flujo:.60, horario:.40, ruido:.30, formalidad:.50 },
+    { id:'supermercado',    nombre:'Supermercado',        icono:'🛒', perfil:'comercio',
+      flujo:.80, horario:.40, ruido:.30, formalidad:.40 },
+    { id:'ferreteria',      nombre:'Ferretería',          icono:'🔧', perfil:'comercio',
+      flujo:.40, horario:.30, ruido:.40, formalidad:.30 },
+    { id:'taller',          nombre:'Taller automotriz',   icono:'🔩', perfil:'comercio',
+      flujo:.30, horario:.30, ruido:.70, formalidad:.20 },
+    { id:'peluqueria',      nombre:'Peluquería / spa',    icono:'💇', perfil:'comercio',
+      flujo:.40, horario:.40, ruido:.20, formalidad:.50 },
+    { id:'lavanderia',      nombre:'Lavandería',          icono:'🧺', perfil:'comercio',
+      flujo:.30, horario:.40, ruido:.30, formalidad:.30 },
+    { id:'restaurante',     nombre:'Restaurante',         icono:'🍽️', perfil:'gastronomia',
+      flujo:.70, horario:.50, ruido:.50, formalidad:.50 },
+    { id:'cafeteria',       nombre:'Cafetería',           icono:'☕', perfil:'gastronomia',
+      flujo:.60, horario:.35, ruido:.30, formalidad:.45 },
+    { id:'bar',             nombre:'Bar',                 icono:'🍹', perfil:'gastronomia',
+      flujo:.60, horario:.75, ruido:.70, formalidad:.30 },
+    { id:'discoteca',       nombre:'Discoteca / rumba',   icono:'🎶', perfil:'gastronomia',
+      flujo:.60, horario:.95, ruido:.95, formalidad:.10 },
+    { id:'panaderia',       nombre:'Panadería',           icono:'🥖', perfil:'gastronomia',
+      flujo:.50, horario:.25, ruido:.25, formalidad:.40 },
+    { id:'consultorio',     nombre:'Consultorio médico',  icono:'🩺', perfil:'salud',
+      flujo:.30, horario:.40, ruido:.10, formalidad:.85 },
+    { id:'drogueria',       nombre:'Droguería',           icono:'💊', perfil:'salud',
+      flujo:.50, horario:.45, ruido:.15, formalidad:.50 },
+    { id:'odontologia',     nombre:'Consultorio odontológico', icono:'🦷', perfil:'salud',
+      flujo:.25, horario:.40, ruido:.10, formalidad:.85 },
+    { id:'veterinaria',     nombre:'Veterinaria',         icono:'🐾', perfil:'salud',
+      flujo:.30, horario:.40, ruido:.25, formalidad:.60 },
+    { id:'oficina',         nombre:'Oficina',             icono:'💼', perfil:'oficinas',
+      flujo:.35, horario:.35, ruido:.15, formalidad:.80 },
+    { id:'coworking',       nombre:'Coworking',           icono:'🧑‍💻', perfil:'oficinas',
+      flujo:.40, horario:.40, ruido:.20, formalidad:.70 },
+    { id:'banco',           nombre:'Banco / financiero',  icono:'🏦', perfil:'oficinas',
+      flujo:.50, horario:.35, ruido:.15, formalidad:.85 },
+    { id:'notaria',         nombre:'Notaría / trámites',  icono:'📋', perfil:'oficinas',
+      flujo:.25, horario:.35, ruido:.10, formalidad:.90 },
+    { id:'hotel',           nombre:'Hotel',               icono:'🏨', perfil:'general',
+      flujo:.50, horario:.55, ruido:.30, formalidad:.70 },
+    { id:'gimnasio',        nombre:'Gimnasio',            icono:'🏋️', perfil:'general',
+      flujo:.50, horario:.50, ruido:.50, formalidad:.30 },
+    { id:'colegio',         nombre:'Colegio',             icono:'🏫', perfil:'general',
+      flujo:.60, horario:.20, ruido:.40, formalidad:.70 },
+    { id:'guarderia',       nombre:'Guardería',           icono:'🧸', perfil:'general',
+      flujo:.40, horario:.20, ruido:.35, formalidad:.60 },
+    { id:'academia',        nombre:'Academia / instituto',icono:'🎓', perfil:'general',
+      flujo:.40, horario:.30, ruido:.20, formalidad:.70 },
+    { id:'parque',          nombre:'Parque / recreación', icono:'🌳', perfil:'general',
+      flujo:.60, horario:.45, ruido:.35, formalidad:.10 },
+    { id:'iglesia',         nombre:'Templo / iglesia',    icono:'⛪', perfil:'general',
+      flujo:.40, horario:.30, ruido:.30, formalidad:.60 },
+    { id:'bodega',          nombre:'Bodega / almacenamiento', icono:'📦', perfil:'general',
+      flujo:.15, horario:.30, ruido:.30, formalidad:.30 },
+    { id:'vivienda',        nombre:'Vivienda',            icono:'🏠', perfil:'general',
+      flujo:.20, horario:.50, ruido:.10, formalidad:.50 }
   ];
   const PROGRAMA_POR_ID = {};
   PROGRAMA.forEach(u => { PROGRAMA_POR_ID[u.id] = u; });
 
-  // ── Compatibilidad entre usos ───────────────────────────────────────────
-  // Matriz por PERFIL (5×5), no por par de usos concretos: agregar un uso
-  // nuevo al catálogo no exige decidir su compatibilidad contra cada uno de
-  // los demás — hereda la de su perfil. 1 = choque directo, 5 = sinergia alta.
-  const AFINIDAD_PERFIL = {
-    'comercio|gastronomia':5,  'comercio|oficinas':4,     'comercio|salud':3,
-    'comercio|general':3,      'comercio|comercio':2,
-    'gastronomia|oficinas':5,  'gastronomia|salud':2,     'gastronomia|general':4,
-    'gastronomia|gastronomia':2,
-    'oficinas|salud':3,        'oficinas|general':3,      'oficinas|oficinas':3,
-    'salud|salud':2,           'salud|general':3,
-    'general|general':3
-  };
-  function afinidadPerfiles(a, b){
-    return AFINIDAD_PERFIL[a + '|' + b] ?? AFINIDAD_PERFIL[b + '|' + a] ?? 3;
-  }
-  const MOTIVO_AFINIDAD = {
-    5:'sinergia alta: el público de uno es, en buena parte, cliente natural del otro.',
-    4:'buena combinación: comparten horario y perfil de visitante sin competir por lo mismo.',
-    3:'combinación neutra: coexisten sin reforzarse ni estorbarse de forma notable.',
-    2:'compiten por el mismo público en el mismo momento del día: conviene diferenciarlos bien.',
-    1:'choque directo de horario o de público: rara vez conviene en el mismo predio.'
-  };
-  function compatibilidadPar(idA, idB){
+  /* ── Compatibilidad entre usos: geometría de atributos, no tabla ─────────
+     No hay ninguna matriz ni lista de parejas decidida de antemano. La
+     compatibilidad de cada combinación se CALCULA a partir de qué tan cerca
+     o lejos están sus cuatro atributos — igual que se mide una distancia
+     entre dos puntos, no como se consulta una casilla en una tabla. Agregar
+     un uso nuevo al catálogo no exige decidir su compatibilidad contra
+     ninguno de los otros 28: basta con darle sus cuatro números y la fórmula
+     hace el resto.
+
+     El diseño se inspira en la lógica del Plan de Ordenamiento Territorial
+     (todo uso se evalúa frente al carácter de su entorno, en niveles que van
+     de "refuerza" a "genera conflicto"), pero el resultado NO es, ni
+     pretende ser, un concepto de uso del suelo oficial — eso solo lo emite
+     la autoridad de planeación municipal (Art. 71, Acuerdo 0083 de 2001). */
+  function puntajeVector(idA, idB){
     const a = PROGRAMA_POR_ID[idA], b = PROGRAMA_POR_ID[idB];
-    if (!a || !b) return { estrellas:3, motivo:'Combinación no evaluada.' };
-    const estrellas = afinidadPerfiles(a.perfil, b.perfil);
-    return { a:a.nombre, b:b.nombre, estrellas, motivo: MOTIVO_AFINIDAD[estrellas] };
+    if (!a || !b) return null;
+
+    const solapeHorario = 1 - Math.abs(a.horario - b.horario);          // 0-1: comparten franja horaria
+    const brechaRuido = Math.abs(a.ruido - b.ruido);
+    const choqueRuido = Math.max(0, brechaRuido - 0.3) / 0.7;            // solo penaliza brechas grandes
+    const mismoPerfil = a.perfil === b.perfil ? 1 : 0;                   // compiten por el mismo público
+    const arrastreFlujo = (a.flujo + b.flujo) / 2 * (1 - mismoPerfil);   // tráfico compartido, sectores distintos
+
+    const puntaje = 50
+      + 25 * solapeHorario
+      - 30 * choqueRuido
+      + 15 * arrastreFlujo
+      - 20 * mismoPerfil;
+
+    return { a, b, puntaje: Math.round(Math.max(0, Math.min(100, puntaje))) };
+  }
+
+  const NIVEL_COMPATIBILIDAD = [
+    { min:70, etiqueta:'Se refuerzan',        motivo:'comparten horario y atraen público que además consume del otro — un flujo que ya existe se aprovecha dos veces.' },
+    { min:45, etiqueta:'Conviven bien',       motivo:'no chocan en horario ni en impacto: pueden funcionar en el mismo predio sin pisarse.' },
+    { min:20, etiqueta:'Revisar antes',       motivo:'compiten por el mismo público o tienen impactos (ruido, horario) difíciles de conciliar — conviene separarlos o escalonarlos.' },
+    { min:0,  etiqueta:'Poco recomendable',   motivo:'la diferencia de horario o de impacto es grande: uno probablemente perjudica al otro si comparten el mismo predio.' }
+  ];
+  function nivelDe(puntaje){
+    return NIVEL_COMPATIBILIDAD.find(n => puntaje >= n.min);
+  }
+
+  function compatibilidadPar(idA, idB){
+    const r = puntajeVector(idA, idB);
+    if (!r) return { puntaje:50, etiqueta:'Sin evaluar', motivo:'Combinación no evaluada.' };
+    const nivel = nivelDe(r.puntaje);
+    return { a:r.a.nombre, b:r.b.nombre, puntaje:r.puntaje, etiqueta:nivel.etiqueta, motivo:nivel.motivo };
   }
   function compatibilidadPrograma(ids){
     const pares = [];

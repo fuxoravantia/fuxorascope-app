@@ -152,9 +152,14 @@
   padding:10px 0; border-bottom:1px solid var(--borde);
 }
 .fs-compat-fila:last-child{ border-bottom:none; }
-.fs-compat-par{ font-size:13.5px; color:var(--texto); font-weight:600; margin-bottom:4px; }
-.fs-estrellas{ color:#eab308; font-size:15px; letter-spacing:2px; }
-.fs-compat-fila p{ font-size:12.5px; color:var(--texto-2); margin-top:4px; line-height:1.5; }
+.fs-compat-cab{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.fs-compat-par{ font-size:13.5px; color:var(--texto); font-weight:600; }
+.fs-compat-badge{
+  background:color-mix(in srgb, var(--tono) 20%, transparent);
+  color:var(--tono); border:1px solid var(--tono);
+  font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:20px; white-space:nowrap;
+}
+.fs-compat-fila p{ font-size:12.5px; color:var(--texto-2); margin-top:5px; line-height:1.5; }
 
 .fs-nota-pdf{ font-size:12px; color:var(--texto-3); border-top:1px dashed var(--borde); padding-top:10px; margin-top:4px; }
 
