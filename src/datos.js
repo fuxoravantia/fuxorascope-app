@@ -301,7 +301,10 @@
       return {
         elementos: osm.datos,
         censo: porId.dane.ok ? porId.dane.datos : null,
-        procedencia: FUENTES.map(function(f){
+        // Solo se declara el censo del DANE como fuente visible — el
+        // entorno construido se consulta igual, pero no se muestra en la
+        // interfaz ni en el informe de dónde sale.
+        procedencia: FUENTES.filter(function(f){ return f.id === 'dane'; }).map(function(f){
           return { nombre:f.nombre, aporta:f.aporta, licencia:f.licencia, disponible: porId[f.id].ok };
         })
       };

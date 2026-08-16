@@ -133,9 +133,7 @@
 
         '<div class="fs-trabajando" id="fs-trabajando" hidden>' +
           '<div class="fs-girando fs-girando--grande"></div>' +
-          '<p id="fs-trabajando-texto">Consultando el entorno del predio…</p>' +
-          '<p class="fs-pista">Puede tardar hasta un minuto: los servidores de mapas ' +
-            'son gratuitos y a veces están ocupados.</p>' +
+          '<p id="fs-trabajando-texto">Consultando el entorno…</p>' +
         '</div>' +
 
         '<div class="fs-fallo" id="fs-fallo" hidden>' +
@@ -405,14 +403,13 @@
     borrador.nombre = (dom.uno('#fs-nombre') || {}).value || '';
     mostrar('fs-trabajando');
 
-    var avisar = function(t){
-      var el = dom.uno('#fs-trabajando-texto');
-      if (el) el.textContent = t;
-    };
+    // La pantalla de carga solo dice "Consultando el entorno…", fijo — no
+    // se le pasan los avisos internos de cada paso (fuente, reintentos,
+    // etc.) para no filtrar de dónde sale la información mientras carga.
+    var avisar = function(){};
 
     DATOS.recolectar(borrador.punto, borrador.radioM, avisar)
       .then(function(paquete){
-        avisar('Calculando el índice de viabilidad…');
         paquete._radioFetch = borrador.radioM;
         FS.estado.fijar({ entorno: paquete });
         pintarEntorno(paquete.elementos);
@@ -604,7 +601,7 @@
         .sort(function(a, b){ return otrosDetalle[b] - otrosDetalle[a]; })
         .slice(0, 25);
       detalleOtros = '<div id="fs-detalle-otros" class="fs-detalle-otros" hidden>' +
-        '<p class="fs-pista">Etiquetas de OpenStreetMap que no están en el diccionario todavía. ' +
+        '<p class="fs-pista">Etiquetas que no están en el diccionario todavía. ' +
           'Sirve para saber qué falta agregar a la clasificación.</p>' +
         '<div class="fs-detalle-otros-lista">' +
           filas.map(function(etq){
