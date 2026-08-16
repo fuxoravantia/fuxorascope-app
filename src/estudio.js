@@ -154,6 +154,77 @@
     '</div>';
   }
 
+  /* ═══ Hoja inferior arrastrable (solo tiene efecto visual en móvil — en
+     escritorio el agarre está oculto por CSS y estas funciones no hacen
+     nada porque el elemento nunca recibe eventos de puntero) ═══════════ */
+  function altoContenedorHoja(){
+    var cont = dom.uno('.fs-estudio');
+    return cont ? cont.clientHeight : window.innerHeight;
+  }
+
+  function fijarAlturaHoja(modo){
+    var panel = dom.uno('#fs-panel');
+    if (!panel) return;
+    var total = altoContenedorHoja();
+    var alturas = { recogida:130, media:Math.round(total * 0.52), expandida:total - 90 };
+    panel.style.setProperty('--hoja-alto', (alturas[modo] || alturas.media) + 'px');
+    panel.dataset.modo = modo;
+  }
+
+  function engancharArrastreHoja(){
+    var agarre = dom.uno('.fs-panel-agarre');
+    var panel = dom.uno('#fs-panel');
+    if (!agarre || !panel) return;
+    var arrancando = false, inicioY = 0, alturaInicio = 0;
+
+    function empezar(y){
+      arrancando = true;
+      inicioY = y;
+      alturaInicio = panel.getBoundingClientRect().height;
+      panel.classList.add('fs-arrastrando');
+    }
+    function mover(y){
+      if (!arrancando) return;
+      var delta = inicioY - y; // arrastrar hacia arriba agranda la hoja
+      var nuevo = Math.min(altoContenedorHoja() - 90, Math.max(110, alturaInicio + delta));
+      panel.style.setProperty('--hoja-alto', nuevo + 'px');
+    }
+    function terminar(y){
+      if (!arrancando) return;
+      arrancando = false;
+      panel.classList.remove('fs-arrastrando');
+
+      // Un toque sin arrastre alterna entre media y expandida — igual que
+      // en URBIS: un toque la abre del todo, arrastrar la deja donde se quiera.
+      if (Math.abs(inicioY - y) < 6) {
+        fijarAlturaHoja(panel.dataset.modo === 'expandida' ? 'media' : 'expandida');
+        return;
+      }
+
+      var total = altoContenedorHoja();
+      var actual = panel.getBoundingClientRect().height;
+      var puntos = [
+        { n:'recogida', v:130 },
+        { n:'media', v: total * 0.52 },
+        { n:'expandida', v: total - 90 }
+      ];
+      var mejor = puntos.reduce(function(a, b){
+        return Math.abs(b.v - actual) < Math.abs(a.v - actual) ? b : a;
+      });
+      fijarAlturaHoja(mejor.n);
+    }
+
+    agarre.addEventListener('pointerdown', function(ev){
+      empezar(ev.clientY);
+      try { agarre.setPointerCapture(ev.pointerId); } catch(e){}
+    });
+    agarre.addEventListener('pointermove', function(ev){ mover(ev.clientY); });
+    agarre.addEventListener('pointerup', function(ev){ terminar(ev.clientY); });
+    agarre.addEventListener('pointercancel', function(ev){ terminar(ev.clientY); });
+
+    fijarAlturaHoja('media');
+  }
+
   /* ═══ Mapa ═════════════════════════════════════════════════════════════ */
   function iniciarMapa(){
     mapa = L.map('fs-mapa', { zoomControl: false, attributionControl: true })
@@ -324,6 +395,9 @@
     });
     var panel = dom.uno('#fs-panel');
     if (panel) panel.scrollTop = 0;
+    // En móvil, el resultado se ve mejor con la hoja expandida — se abre
+    // sola, pero se puede volver a recoger arrastrando o con un toque.
+    if (cual === 'fs-resultado') fijarAlturaHoja('expandida');
   }
 
   function analizar(){
@@ -951,6 +1025,7 @@
     montar: function(raiz){
       iniciarMapa();
       enlazarFormulario(raiz);
+      engancharArrastreHoja();
 
       // Si se llega desde "Mis estudios", se pinta el estudio ya cargado.
       var previo = FS.estado.obtener('estudio');

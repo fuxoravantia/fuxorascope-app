@@ -321,19 +321,32 @@
 .fs-procedencia p:last-child{ margin-bottom:0; }
 .fs-procedencia small{ color:var(--texto-3); font-size:11.5px; }
 
-/* ═══ Móvil: el panel se vuelve hoja inferior ═══════════════════════════ */
+/* ═══ Móvil: el panel es una hoja inferior arrastrable ══════════════════
+   El mapa ocupa toda la pantalla detrás; la hoja flota encima y su alto lo
+   controla JS (variable --hoja-alto) al arrastrar el agarre o al tocarlo.
+   Tres puntos de reposo: recogida (solo el título asoma), media (mitad de
+   pantalla) y expandida (casi todo, deja un borde de mapa visible arriba). */
 @media (max-width:860px){
-  .fs-estudio{ flex-direction:column; position:relative; }
-  #fs-mapa{ height:42vh; flex:none; }
+  .fs-estudio{ position:relative; }
+  /* z-index propio: sin esto, los paneles internos de Leaflet (hasta 650)
+     se comparan directo contra la hoja (20) y le ganan, tapándola entera. */
+  #fs-mapa{ position:absolute; inset:0; height:auto; z-index:1; }
   .fs-panel{
-    flex:1; border-left:none; border-top:1px solid var(--borde);
+    position:absolute; left:0; right:0; bottom:0; z-index:20;
+    height:var(--hoja-alto, 52vh);
+    max-height:calc(100% - 70px);
+    border-left:none; border-top:1px solid var(--borde);
     border-radius:var(--r-grande) var(--r-grande) 0 0;
-    margin-top:-18px; position:relative; z-index:20;
     padding:8px 17px calc(50px + env(safe-area-inset-bottom, 0px));
     box-shadow:0 -8px 26px rgba(0,0,0,.4);
     -webkit-overflow-scrolling:touch;
+    transition:height .28s cubic-bezier(.22,.8,.32,1);
   }
-  .fs-panel-agarre{ display:block; padding:7px 0 12px; text-align:center; }
+  .fs-panel.fs-arrastrando{ transition:none; }
+  .fs-panel-agarre{
+    display:block; padding:9px 0 12px; text-align:center;
+    cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none;
+  }
   .fs-panel-agarre span{
     display:inline-block; width:42px; height:4px;
     background:var(--borde-vivo); border-radius:3px;
