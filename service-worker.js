@@ -17,24 +17,24 @@
    Al subir VERSION se borran los cachés anteriores y el navegador toma la
    versión nueva. Sube VERSION en cada publicación. */
 
-const VERSION = 'fuxorascope-v8';
+const VERSION = 'fuxorascope-v9';
 
 const ARMAZON = [
   './',
   './index.html',
   './manifest.json',
-  './css/base.css?v=8',
-  './css/acceso.css?v=8',
-  './css/estudio.css?v=8',
-  './src/config.js?v=8',
-  './src/nucleo.js?v=8',
-  './src/motor.js?v=8',
-  './src/lectura.js?v=8',
-  './src/datos.js?v=8',
-  './src/informe.js?v=8',
-  './src/acceso.js?v=8',
-  './src/estudio.js?v=8',
-  './src/app.js?v=8',
+  './css/base.css?v=9',
+  './css/acceso.css?v=9',
+  './css/estudio.css?v=9',
+  './src/config.js?v=9',
+  './src/nucleo.js?v=9',
+  './src/motor.js?v=9',
+  './src/lectura.js?v=9',
+  './src/datos.js?v=9',
+  './src/informe.js?v=9',
+  './src/acceso.js?v=9',
+  './src/estudio.js?v=9',
+  './src/app.js?v=9',
   './assets/iconos/icono-192.png',
   './assets/iconos/icono-512.png'
 ];

@@ -283,6 +283,24 @@
 .fs-donut-fila i{ width:10px; height:10px; border-radius:50%; flex:0 0 auto; display:block; }
 .fs-donut-fila span{ color:var(--texto-2); flex:1; }
 .fs-donut-fila b{ color:var(--texto); font-weight:700; }
+.fs-donut-fila--otro{ cursor:pointer; border-radius:6px; padding:3px 5px; margin:0 -5px; }
+.fs-donut-fila--otro:hover{ background:var(--panel-2); }
+.fs-donut-fila--otro span{ color:var(--marca-brillo); }
+
+.fs-detalle-otros{
+  background:var(--fondo-2); border:1px dashed var(--borde-vivo);
+  border-radius:var(--r-chico); padding:11px 13px; margin-bottom:12px;
+}
+.fs-detalle-otros-lista{ display:flex; flex-direction:column; gap:5px; margin-top:8px; max-height:220px; overflow-y:auto; }
+.fs-detalle-otros-fila{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  font-size:12px; padding:4px 0; border-bottom:1px solid var(--borde);
+}
+.fs-detalle-otros-fila:last-child{ border-bottom:none; }
+.fs-detalle-otros-fila code{
+  color:var(--texto-2); font-family:"Cascadia Code","Consolas",monospace; font-size:11.5px;
+}
+.fs-detalle-otros-fila b{ color:var(--marca-brillo); flex:0 0 auto; }
 
 /* Fichas de conteo */
 .fs-fichas{ display:flex; flex-wrap:wrap; gap:8px; }

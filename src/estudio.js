@@ -379,7 +379,7 @@
         modo: 'mixto',
         indice: programa.indiceConjunto, nivel: programa.nivel,
         porUso: programa.porUso, compatibilidad: programa.compatibilidad,
-        porCategoria: entorno.porCategoria, viasCercanas: entorno.viasCercanas,
+        porCategoria: entorno.porCategoria, otrosDetalle: entorno.otrosDetalle, viasCercanas: entorno.viasCercanas,
         radioM: borrador.radioM, mezclaUsos: mezclaUsos,
         nombre: borrador.nombre || ('Programa combinado · ' + (borrador.direccion || FS.cfg.CIUDAD)),
         lat: borrador.punto.lat, lng: borrador.punto.lng, direccion: borrador.direccion,
@@ -495,9 +495,11 @@
   // Donut de la mezcla de usos del radio, con los mismos colores que ya usa
   // el mapa y su leyenda — para que el color signifique lo mismo en todas
   // partes de la pantalla, no solo en el mapa.
-  function donutCategorias(porCategoria, censo){
+  function donutCategorias(porCategoria, censo, otrosDetalle){
+    // "otro" se incluye como una categoría más, no se esconde: todo lo que
+    // entra al cálculo de viabilidad debe poder verse en algún lado.
     var cats = Object.keys(porCategoria || {})
-      .filter(function(c){ return c !== 'otro' && porCategoria[c] > 0; })
+      .filter(function(c){ return porCategoria[c] > 0; })
       .sort(function(a, b){ return porCategoria[b] - porCategoria[a]; });
     var total = cats.reduce(function(s, c){ return s + porCategoria[c]; }, 0);
     if (!total) return '';
@@ -514,9 +516,30 @@
 
     var leyenda = cats.slice(0, 10).map(function(c){
       var pct = Math.round(porCategoria[c] / total * 100);
-      return '<div class="fs-donut-fila"><i style="background:' + LECTURA.colorCategoria(c) + '"></i>' +
-        '<span>' + esc(LECTURA.NOMBRE_CATEGORIA[c] || c) + '</span><b>' + pct + '%</b></div>';
+      var esOtro = c === 'otro';
+      return '<div class="fs-donut-fila' + (esOtro ? ' fs-donut-fila--otro' : '') + '"' +
+          (esOtro ? ' id="fs-fila-otro" role="button" tabindex="0"' : '') + '>' +
+        '<i style="background:' + LECTURA.colorCategoria(c) + '"></i>' +
+        '<span>' + esc(LECTURA.NOMBRE_CATEGORIA[c] || c) + (esOtro ? ' — ver detalle ▾' : '') + '</span>' +
+        '<b>' + pct + '%</b></div>';
     }).join('');
+
+    var detalleOtros = '';
+    if (otrosDetalle && Object.keys(otrosDetalle).length) {
+      var filas = Object.keys(otrosDetalle)
+        .sort(function(a, b){ return otrosDetalle[b] - otrosDetalle[a]; })
+        .slice(0, 25);
+      detalleOtros = '<div id="fs-detalle-otros" class="fs-detalle-otros" hidden>' +
+        '<p class="fs-pista">Etiquetas de OpenStreetMap que no están en el diccionario todavía. ' +
+          'Sirve para saber qué falta agregar a la clasificación.</p>' +
+        '<div class="fs-detalle-otros-lista">' +
+          filas.map(function(etq){
+            return '<div class="fs-detalle-otros-fila"><code>' + esc(etq) + '</code><b>' +
+              otrosDetalle[etq] + '</b></div>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    }
 
     var notaVivienda = (censo && censo.viviendas)
       ? '<p class="fs-pista">🏠 El mapa no cuenta casas una por una: el número de viviendas del sector ' +
@@ -533,7 +556,19 @@
         '</svg>' +
         '<div class="fs-donut-leyenda">' + leyenda + '</div>' +
       '</div>' +
+      detalleOtros +
       notaVivienda;
+  }
+
+  function enlazarDonut(raiz){
+    var filaOtro = dom.uno('#fs-fila-otro', raiz);
+    var detalle = dom.uno('#fs-detalle-otros', raiz);
+    if (!filaOtro || !detalle) return;
+    var alternar = function(){ detalle.hidden = !detalle.hidden; };
+    filaOtro.addEventListener('click', alternar);
+    filaOtro.addEventListener('keydown', function(ev){
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); alternar(); }
+    });
   }
 
   function pintarResultado(e){
@@ -543,7 +578,7 @@
     var datos   = lec.señales.filter(function(s){ return s.tipo === 'dato'; });
 
     var cats = Object.keys(e.porCategoria || {})
-      .filter(function(c){ return c !== 'otro'; })
+      .filter(function(c){ return e.porCategoria[c] > 0; })
       .sort(function(a, b){ return e.porCategoria[b] - e.porCategoria[a]; });
 
     dom.uno('#fs-resultado').innerHTML = '' +
@@ -607,7 +642,7 @@
 
       '<div class="fs-bloque">' +
         '<h3>Qué hay en el radio <small>' + FS.util.numero(e.totalPuntos) + ' puntos leídos</small></h3>' +
-        donutCategorias(e.porCategoria, e.censo) +
+        donutCategorias(e.porCategoria, e.censo, e.otrosDetalle) +
         '<div class="fs-fichas">' +
           cats.map(function(c){
             return '<div class="fs-ficha" style="--tono:' + LECTURA.colorCategoria(c) + '">' +
@@ -640,7 +675,7 @@
   function pintarResultadoMixto(e){
     var nivel = LECTURA.NIVELES[e.nivel] || LECTURA.NIVELES.Media;
     var cats = Object.keys(e.porCategoria || {})
-      .filter(function(c){ return c !== 'otro'; })
+      .filter(function(c){ return e.porCategoria[c] > 0; })
       .sort(function(a, b){ return e.porCategoria[b] - e.porCategoria[a]; });
 
     dom.uno('#fs-resultado').innerHTML = '' +
@@ -704,7 +739,7 @@
 
       '<div class="fs-bloque">' +
         '<h3>Qué hay en el radio <small>' + FS.util.numero(e.totalPuntos) + ' puntos leídos</small></h3>' +
-        donutCategorias(e.porCategoria, e.censo) +
+        donutCategorias(e.porCategoria, e.censo, e.otrosDetalle) +
         '<div class="fs-fichas">' +
           cats.map(function(c){
             return '<div class="fs-ficha" style="--tono:' + LECTURA.colorCategoria(c) + '">' +
@@ -731,6 +766,7 @@
 
   function enlazarResultadoMixto(){
     var raiz = dom.uno('#fs-resultado');
+    enlazarDonut(raiz);
 
     dom.uno('#fs-nuevo', raiz).addEventListener('click', function(){
       FS.estado.fijar({ estudio: null });
@@ -797,6 +833,7 @@
 
   function enlazarResultado(){
     var raiz = dom.uno('#fs-resultado');
+    enlazarDonut(raiz);
 
     var selectorUso = dom.uno('#fs-usos-res', raiz);
     if (selectorUso) selectorUso.addEventListener('change', function(ev){

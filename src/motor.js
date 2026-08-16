@@ -115,6 +115,18 @@
     return 'otro';
   }
 
+  // Para cuando categoriaDe() devuelve 'otro': qué etiqueta concreta se
+  // quedó sin mapear (ej. "shop=optician"), para poder auditarlo — nada
+  // debe caer en "otros usos" sin que se pueda ver de qué se trata.
+  function etiquetaCruda(tags){
+    if (!tags) return 'sin etiquetas';
+    for (let i = 0; i < ETIQUETAS_DE_USO.length; i++) {
+      const valor = tags[ETIQUETAS_DE_USO[i]];
+      if (valor) return ETIQUETAS_DE_USO[i] + '=' + valor;
+    }
+    return tags.name ? 'sin categoría OSM (solo nombre: "' + tags.name + '")' : 'sin etiquetas de uso';
+  }
+
   // ── Geometría ────────────────────────────────────────────────────────────
   function distanciaM(a, b){
     const R = 6371000, rad = Math.PI / 180;
@@ -349,6 +361,10 @@
     let sumaInfluenciaTotal = 0, sumaCompetencia = 0, sumaComplemento = 0;
     let mejorVia = 0, nVias = 0, transporte = 0;
     const porCategoria = {};
+    // Nada de lo que entra al cálculo debe quedar sin poder auditarse: cada
+    // punto que cae en "otro" queda registrado aquí con su etiqueta cruda,
+    // para poder verlo en el resultado en vez de que desaparezca.
+    const otrosDetalle = {};
 
     (entrada.elementos || []).forEach(el => {
       if (el.lat == null || el.lng == null) return;
@@ -365,6 +381,10 @@
 
       const cat = categoriaDe(el.tags);
       porCategoria[cat] = (porCategoria[cat] || 0) + 1;
+      if (cat === 'otro') {
+        const etq = etiquetaCruda(el.tags);
+        otrosDetalle[etq] = (otrosDetalle[etq] || 0) + 1;
+      }
       sumaInfluenciaTotal += peso;
       if (competenciaCats.indexOf(cat) !== -1) sumaCompetencia += peso;
       if (complementoCats.indexOf(cat) !== -1) sumaComplemento += peso;
@@ -400,13 +420,14 @@
                     entorno:iEntorno, complemento:iComplemento },
       pesosUsados: perfil,
       porCategoria,
+      otrosDetalle,
       viasCercanas: nVias,
       radioM
     };
   }
 
   window.FUXORASCOPE_MOTOR = {
-    categoriaDe, distanciaM, pesoPorDistancia, calcularIndice,
+    categoriaDe, etiquetaCruda, distanciaM, pesoPorDistancia, calcularIndice,
     calcularPrograma, compatibilidadPrograma, indiceMezclaUsos,
     CATEGORIAS, PERFILES, COMPETENCIA_POR_TIPO, COMPLEMENTO_POR_TIPO,
     PROGRAMA, PROGRAMA_POR_ID
