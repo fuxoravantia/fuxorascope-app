@@ -359,3 +359,94 @@
   .fs-columnas{ flex-direction:row; gap:14px; }
   .fs-columnas > *{ flex:1; }
 }
+
+/* ═══ GRÁFICAS DEMOGRÁFICAS ═══════════════════════════════════════════════
+   El cliente no lee párrafos: lee formas y cifras. Cada análisis lleva su
+   gráfica, y cada gráfica lleva su número escrito — nadie debe medir a ojo.
+   Los tonos van verificados sobre --panel; el texto nunca baja de --texto-3.
+   ═══════════════════════════════════════════════════════════════════════ */
+.fs-g{
+  background:var(--panel);
+  border:1px solid var(--borde);
+  border-radius:var(--r-medio);
+  padding:15px 16px 14px;
+  margin-bottom:11px;
+}
+.fs-g:last-child{ margin-bottom:0; }
+.fs-g-cab{
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:12px; margin-bottom:13px; flex-wrap:wrap;
+}
+.fs-g-cab h4{ font-size:.97rem; font-weight:700; color:var(--texto); }
+.fs-g-cab span{ font-size:.76rem; color:var(--texto-3); }
+.fs-g-lectura{
+  margin-top:12px; padding-top:11px; border-top:1px solid var(--borde);
+  font-size:.82rem; color:var(--texto-2); line-height:1.5;
+}
+.fs-g-lectura b{ color:var(--texto); }
+.fs-svg{ width:100%; height:auto; display:block; }
+
+/* Comparación de dos grupos */
+.fs-duo{ display:flex; height:34px; border-radius:8px; overflow:hidden; gap:2px; }
+.fs-duo span{ display:block; height:100%; }
+.fs-duo-b{ flex:1; }
+.fs-duo-pie{
+  display:flex; justify-content:space-between; gap:12px; margin-top:10px; flex-wrap:wrap;
+}
+.fs-duo-pie div{ display:flex; align-items:center; gap:7px; }
+.fs-duo-pie .fs-der{ justify-content:flex-end; }
+.fs-duo-pie i{ width:11px; height:11px; border-radius:3px; flex:0 0 auto; }
+.fs-duo-pie b{ font-size:1.15rem; font-weight:700; color:var(--texto); }
+.fs-duo-pie span{ font-size:.79rem; color:var(--texto-2); }
+
+/* Etapas de vida */
+.fs-etapas{ display:grid; grid-template-columns:repeat(2,1fr); gap:9px; }
+.fs-etapa{
+  background:var(--fondo-2); border:1px solid var(--borde);
+  border-top:3px solid var(--c); border-radius:var(--r-chico);
+  padding:11px 12px 10px;
+}
+.fs-etapa-ico{ font-size:1.15rem; line-height:1; display:block; margin-bottom:5px; }
+.fs-etapa-p{
+  display:block; font-size:1.5rem; font-weight:700; color:var(--c);
+  line-height:1; letter-spacing:-.02em;
+}
+.fs-etapa-n{ display:block; font-size:.86rem; font-weight:600; color:var(--texto); margin-top:3px; }
+.fs-etapa-r{ display:block; font-size:.71rem; color:var(--texto-3); }
+.fs-etapa-v{ display:block; font-size:.75rem; color:var(--texto-2); margin-top:5px; }
+.fs-etapa-riel{
+  display:block; height:4px; border-radius:99px; background:rgba(255,255,255,.10);
+  margin-top:8px; overflow:hidden;
+}
+.fs-etapa-riel i{ display:block; height:100%; background:var(--c); border-radius:99px; }
+
+/* Barras horizontales con nombre y cifra */
+.fs-filas{ display:grid; gap:8px; }
+.fs-fila{ display:grid; grid-template-columns:1fr 1.5fr auto; align-items:center; gap:10px; }
+.fs-fila-n{ font-size:.82rem; color:var(--texto-2); }
+.fs-fila-riel{
+  height:14px; border-radius:99px; background:rgba(255,255,255,.09); overflow:hidden;
+}
+.fs-fila-riel i{ display:block; height:100%; border-radius:99px; }
+.fs-fila-v{
+  font-size:.84rem; font-weight:700; color:var(--texto); text-align:right;
+  white-space:nowrap; font-variant-numeric:tabular-nums;
+}
+.fs-fila-v em{ display:block; font-style:normal; font-size:.71rem; font-weight:600; color:var(--texto-3); }
+
+/* Anillo */
+.fs-g-anillo{ display:flex; align-items:center; gap:15px; }
+.fs-g-anillo svg{ width:104px; height:104px; flex:0 0 auto; }
+.fs-anillo-txt h4{ font-size:.95rem; font-weight:700; color:var(--texto); margin-bottom:4px; }
+.fs-anillo-txt p{ font-size:.81rem; color:var(--texto-2); line-height:1.5; }
+
+/* Barra apilada + leyenda */
+.fs-apilada{ display:flex; height:26px; border-radius:7px; overflow:hidden; gap:2px; }
+.fs-apilada span{ display:block; height:100%; }
+.fs-leyenda{ display:flex; flex-wrap:wrap; gap:10px; margin-top:11px; }
+.fs-leyenda span{ display:inline-flex; align-items:center; gap:6px; font-size:.76rem; color:var(--texto-2); }
+.fs-leyenda i{ width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+
+@media (min-width:620px){
+  .fs-etapas{ grid-template-columns:repeat(4,1fr); }
+}

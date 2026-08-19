@@ -861,6 +861,7 @@
   }
 
   function bloqueCenso(c){
+    var G = window.FUXORASCOPE_GRAFICOS;
     var filas = [
       { et:'Habitantes en el radio', v: FS.util.numero(c.habitantes) },
       c.viviendas ? { et:'Viviendas', v: FS.util.numero(c.viviendas) } : null,
@@ -870,14 +871,61 @@
       { et:'Detalle del dato', v: c.nivel === 'manzana' ? 'Manzana censal' : 'Sector censal (aproximado)' }
     ].filter(Boolean);
 
+    var tabla = '' +
+      '<div class="fs-tabla">' +
+        filas.map(function(f){
+          return '<div class="fs-tabla-fila"><span>' + esc(f.et) + '</span><b>' + esc(f.v) + '</b></div>';
+        }).join('') +
+      '</div>';
+
+    // ── Gráficas demográficas ──────────────────────────────────────────
+    // Cada corte del censo con su propia gráfica. Si una dimensión no vino
+    // en los datos simplemente no se dibuja: una barra en cero se leería
+    // como "aquí no hay nadie", que es distinto de "el censo no lo informa".
+    var g = '';
+    var d = c.demografia;
+    if (G && d) {
+      if (d.sexo) {
+        g += G.comparadas(
+          { etiqueta:'Hombres', n:d.sexo.hombres, color:G.COLORES.hombre },
+          { etiqueta:'Mujeres', n:d.sexo.mujeres, color:G.COLORES.mujer }
+        );
+      }
+      if (d.etapas) g += G.etapas(d.etapas);
+      if (d.edades) g += G.histograma(d.edades.rangos, d.edades.total);
+
+      if (d.educacion) {
+        var uni = d.educacion.filter(function(x){
+          return x.etiqueta === 'Universitaria' || x.etiqueta === 'Posgrado';
+        }).reduce(function(s, x){ return s + x.n; }, 0);
+        var totEd = d.educacion.reduce(function(s, x){ return s + x.n; }, 0);
+        g += G.barras('Nivel educativo alcanzado', 'personas de 5 años o más', d.educacion, {
+          lectura: totEd ? '<b>' + G.pct(uni, totEd) + '%</b> tiene estudios universitarios o de posgrado. ' +
+            'Es el dato que mejor anticipa capacidad de gasto y tipo de oferta que funciona.' : ''
+        });
+      }
+
+      if (d.alfabetismo) {
+        g += G.anillo('Alfabetismo', d.alfabetismo.pct, 'sabe leer',
+          G.COLORES.ninos,
+          FS.util.numero(d.alfabetismo.si) + ' personas saben leer y escribir; ' +
+          FS.util.numero(d.alfabetismo.no) + ' no. Marca qué tan gráfica debe ser la señalización.');
+      }
+
+      if (c.estrato && c.estrato.reparto) {
+        g += G.estratos(c.estrato.reparto, colorEstrato);
+      }
+    }
+
+    var aviso = (G && !d)
+      ? '<p class="fs-g-lectura">El censo no entregó el detalle demográfico para este radio. ' +
+        'Suele pasar en zonas rurales o con muy pocas manzanas censadas.</p>'
+      : '';
+
     return '' +
       '<div class="fs-bloque">' +
         '<h3>Población según el Censo 2018 <small>DANE</small></h3>' +
-        '<div class="fs-tabla">' +
-          filas.map(function(f){
-            return '<div class="fs-tabla-fila"><span>' + esc(f.et) + '</span><b>' + esc(f.v) + '</b></div>';
-          }).join('') +
-        '</div>' +
+        tabla + aviso + g +
       '</div>';
   }
 

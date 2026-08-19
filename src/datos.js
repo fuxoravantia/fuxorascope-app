@@ -229,19 +229,157 @@
       });
   }
 
+  /* ── Demografía detallada ────────────────────────────────────────────────
+     El censo trae mucho más que el total de habitantes: sexo, edad en 21
+     rangos, nivel educativo, alfabetismo, grupo étnico y discapacidad. Antes
+     solo se pedía SEXO_TOTAL, así que todo eso se estaba desperdiciando.
+
+     Se pide en TRES consultas y no en una: ArcGIS admite varias estadísticas
+     por llamada, pero con más de ~20 empieza a fallar en silencio. Repartirlo
+     también evita que un bloque caído tumbe a los demás. */
+  var CAMPOS_EDAD = [
+    'EDAD_0_4','EDAD_5_9','EDAD_10_14','EDAD_15_19','EDAD_20_24','EDAD_25_29',
+    'EDAD_30_34','EDAD_35_39','EDAD_40_44','EDAD_45_49','EDAD_50_54','EDAD_55_59',
+    'EDAD_60_64','EDAD_65_69','EDAD_70_74','EDAD_75_79','EDAD_80_84','EDAD_85_89',
+    'EDAD_90_94','EDAD_95_99','EDAD_100_O_MAS'
+  ];
+  var CAMPOS_EDUC = [
+    'NIVEL_EDUC_NINGUNO','NIVEL_EDUC_PREESCOLAR','NIVEL_EDUC_PRIMARIA',
+    'NIVEL_EDUC_SECUNDARIA','NIVEL_EDUC_MEDIA_TECNICA','NIVEL_EDUC_NORMALISTA',
+    'NIVEL_EDUC_TECNICA_TECNOLOGO','NIVEL_EDUC_UNIVERSITARIA','NIVEL_EDUC_ESP_MAES_DOC'
+  ];
+  var CAMPOS_ETNIA = [
+    'GRUPO_ETNICO_INDIGENA','GRUPO_ETNICO_NEGRO','GRUPO_ETNICO_RAIZAL',
+    'GRUPO_ETNICO_PALANQUERO','GRUPO_ETNICO_GITANO','GRUPO_ETNICO_NINGUNO'
+  ];
+
+  // Suma varios campos de una capa en una sola llamada.
+  function sumarCampos(capa, lat, lng, radioM, campos){
+    var p = paramsRadio(lat, lng, radioM);
+    p.set('outStatistics', JSON.stringify(campos.map(function(c, i){
+      return { statisticType:'sum', onStatisticField:c, outStatisticFieldName:'F' + i };
+    })));
+    return pedir(BASE_DANE + capa + '?' + p.toString(), {}, 25000)
+      .then(function(d){
+        if (!d || d.error) return null;
+        var a = d.features && d.features[0] && d.features[0].attributes;
+        if (!a) return null;
+        var out = {}, algo = false;
+        campos.forEach(function(c, i){
+          var v = a['F' + i];
+          out[c] = v == null ? 0 : Math.round(v);
+          if (v) algo = true;
+        });
+        return algo ? out : null;
+      })
+      .catch(function(){ return null; });
+  }
+
+  // Intenta manzana y cae a sector, igual que poblacion(): en zonas rurales la
+  // capa de manzana viene vacía y sin esto la demografía desaparecería.
+  function sumarConRespaldo(lat, lng, radioM, campos){
+    return sumarCampos(CAPAS.personasManzana, lat, lng, radioM, campos)
+      .then(function(m){
+        if (m) return m;
+        return sumarCampos(CAPAS.personasSector, lat, lng, radioM, campos);
+      });
+  }
+
+  function demografia(lat, lng, radioM){
+    return Promise.all([
+      sumarConRespaldo(lat, lng, radioM, ['SEXO_H','SEXO_M'].concat(CAMPOS_EDAD.slice(0, 12))),
+      sumarConRespaldo(lat, lng, radioM, CAMPOS_EDAD.slice(12)),
+      sumarConRespaldo(lat, lng, radioM,
+        CAMPOS_EDUC.concat(['ALFABETA_SI','ALFABETA_NO','CONDICION_FISICA_SI']))
+    ]).then(function(r){
+      var a = r[0], b = r[1], c = r[2];
+      if (!a && !b && !c) return null;
+      var todo = {};
+      [a, b, c].forEach(function(o){ if (o) Object.keys(o).forEach(function(k){ todo[k] = o[k]; }); });
+
+      var hombres = todo.SEXO_H || 0, mujeres = todo.SEXO_M || 0;
+      var totalSexo = hombres + mujeres;
+
+      var edades = CAMPOS_EDAD.map(function(k){
+        return { campo:k, etiqueta: etiquetaEdad(k), n: todo[k] || 0 };
+      });
+      var totalEdad = edades.reduce(function(s, e){ return s + e.n; }, 0);
+
+      // Etapas de vida: los quinquenios sueltos no le dicen nada a nadie;
+      // agrupados sí responden "¿esto es un barrio de niños o de mayores?".
+      var etapas = [
+        { id:'ninos',   etiqueta:'Niños',   rango:'0 a 14 años',  n: sumaRango(todo, 0, 14) },
+        { id:'jovenes', etiqueta:'Jóvenes', rango:'15 a 29 años', n: sumaRango(todo, 15, 29) },
+        { id:'adultos', etiqueta:'Adultos', rango:'30 a 59 años', n: sumaRango(todo, 30, 59) },
+        { id:'mayores', etiqueta:'Mayores', rango:'60 años o más', n: sumaRango(todo, 60, 200) }
+      ];
+
+      var educacion = CAMPOS_EDUC.map(function(k){
+        return { etiqueta: etiquetaEduc(k), n: todo[k] || 0 };
+      }).filter(function(x){ return x.n > 0; });
+
+      var alfSi = todo.ALFABETA_SI || 0, alfNo = todo.ALFABETA_NO || 0;
+
+      return {
+        sexo: totalSexo ? {
+          hombres: hombres, mujeres: mujeres, total: totalSexo,
+          pctHombres: Math.round(hombres * 1000 / totalSexo) / 10,
+          pctMujeres: Math.round(mujeres * 1000 / totalSexo) / 10
+        } : null,
+        edades: totalEdad ? { rangos: edades, total: totalEdad } : null,
+        etapas: totalEdad ? etapas : null,
+        educacion: educacion.length ? educacion : null,
+        alfabetismo: (alfSi + alfNo) ? {
+          si: alfSi, no: alfNo,
+          pct: Math.round(alfSi * 1000 / (alfSi + alfNo)) / 10
+        } : null,
+        discapacidad: todo.CONDICION_FISICA_SI || 0
+      };
+    }).catch(function(){ return null; });
+  }
+
+  function etiquetaEdad(k){
+    if (k === 'EDAD_100_O_MAS') return '100+';
+    var p = k.replace('EDAD_', '').split('_');
+    return p[0] + '–' + p[1];
+  }
+  function limitesEdad(k){
+    if (k === 'EDAD_100_O_MAS') return [100, 200];
+    var p = k.replace('EDAD_', '').split('_');
+    return [Number(p[0]), Number(p[1])];
+  }
+  function sumaRango(todo, desde, hasta){
+    return CAMPOS_EDAD.reduce(function(s, k){
+      var l = limitesEdad(k);
+      return (l[0] >= desde && l[0] <= hasta) ? s + (todo[k] || 0) : s;
+    }, 0);
+  }
+  function etiquetaEduc(k){
+    var m = {
+      NIVEL_EDUC_NINGUNO:'Ninguno', NIVEL_EDUC_PREESCOLAR:'Preescolar',
+      NIVEL_EDUC_PRIMARIA:'Primaria', NIVEL_EDUC_SECUNDARIA:'Secundaria',
+      NIVEL_EDUC_MEDIA_TECNICA:'Media técnica', NIVEL_EDUC_NORMALISTA:'Normalista',
+      NIVEL_EDUC_TECNICA_TECNOLOGO:'Técnica o tecnóloga', NIVEL_EDUC_UNIVERSITARIA:'Universitaria',
+      NIVEL_EDUC_ESP_MAES_DOC:'Posgrado'
+    };
+    return m[k] || k;
+  }
+
   function censo(lat, lng, radioM){
     return Promise.all([
       poblacion(lat, lng, radioM),
       agregarCapa(CAPAS.viviendasManzana, lat, lng, radioM, 'TOTAL_VIVIENDAS'),
-      estratoPredominante(lat, lng, radioM)
+      estratoPredominante(lat, lng, radioM),
+      demografia(lat, lng, radioM)
     ]).then(function(res){
-      var pob = res[0], viv = res[1], est = res[2];
+      var pob = res[0], viv = res[1], est = res[2], demo = res[3];
       if (!pob) return null;
       var salida = {
         habitantes: pob.habitantes,
         nivel: pob.nivel,
         manzanas: pob.unidades,
-        estrato: est
+        estrato: est,
+        demografia: demo
       };
       // Las viviendas vienen de la capa de MANZANA. Solo se combinan con la
       // población si esta también salió de manzana; mezclar niveles daría
