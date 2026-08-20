@@ -28,14 +28,181 @@
   function programaPorGrupo(perfil){
     return MOTOR.PROGRAMA.filter(function(u){ return u.perfil === perfil; });
   }
+
+  /* ── Selector de usos con 148 opciones ─────────────────────────────────
+     Familias plegadas + buscador. Se dibuja por JS y no en la plantilla
+     porque cambia con cada búsqueda y con cada selección. */
+  var familiaAbierta = null;
+
+  function pintarSelectorUsos(filtro){
+    var caja = document.getElementById('fs-usos');
+    if (!caja) return;
+    var texto = String(filtro || '').trim();
+
+    // Buscando: lista plana con los resultados, sin familias de por medio.
+    if (texto && USOS) {
+      var hallados = USOS.buscar(texto);
+      caja.innerHTML = hallados.length
+        ? '<div class="fs-usos-grupo"><span class="fs-usos-grupo-titulo">' +
+            hallados.length + ' resultado' + (hallados.length === 1 ? '' : 's') + '</span>' +
+            '<div class="fs-usos-grupo-chips">' + hallados.map(chipUso).join('') + '</div></div>'
+        : '<p class="fs-pista">Ningún negocio coincide con “' + esc(texto) + '”. ' +
+          'Prueba con otra palabra o abre una familia.</p>';
+      return;
+    }
+
+    if (!USOS) {   // respaldo: catálogo viejo agrupado por perfil
+      caja.innerHTML = GRUPOS_PROGRAMA.map(function(g){
+        var items = programaPorGrupo(g.perfil);
+        if (!items.length) return '';
+        return '<div class="fs-usos-grupo"><span class="fs-usos-grupo-titulo">' + esc(g.titulo) +
+          '</span><div class="fs-usos-grupo-chips">' + items.map(chipUso).join('') + '</div></div>';
+      }).join('');
+      return;
+    }
+
+    // La familia del uso ya elegido se abre sola: si vuelvo al paso, quiero
+    // ver dónde quedó mi selección, no una lista cerrada.
+    var elegido = USOS.POR_ID[borrador.usoId];
+    if (familiaAbierta === null && elegido) familiaAbierta = elegido.grupo;
+
+    caja.innerHTML = USOS.porGrupo().map(function(g){
+      var abierta = familiaAbierta === g.grupo.id;
+      var marcados = g.usos.filter(function(u){
+        return borrador.modo === 'mixto'
+          ? borrador.usosMixto.indexOf(u.id) !== -1
+          : u.id === borrador.usoId;
+      }).length;
+      return '<div class="fs-familia' + (abierta ? ' abierta' : '') + '">' +
+        '<button type="button" class="fs-familia-cab" data-familia="' + g.grupo.id + '" ' +
+          'aria-expanded="' + (abierta ? 'true' : 'false') + '">' +
+          '<span class="fs-familia-ico" aria-hidden="true">' + g.grupo.icono + '</span>' +
+          '<b>' + esc(g.grupo.nombre) + '</b>' +
+          (marcados ? '<em class="fs-familia-marca">' + marcados + '</em>' : '') +
+          '<span class="fs-familia-n">' + g.usos.length + '</span>' +
+          '<span class="fs-familia-flecha" aria-hidden="true">›</span>' +
+        '</button>' +
+        (abierta ? '<div class="fs-usos-grupo-chips">' + g.usos.map(chipUso).join('') + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  /* ── Las dos preguntas ────────────────────────────────────────────────
+     En modo "busco dónde" no hay predio que marcar: pedir una dirección
+     sería contradecir la pregunta que el cliente acaba de hacer. */
+  function aplicarPregunta(raiz){
+    var r = raiz || document;
+    var zona = borrador.pregunta === 'zona';
+    dom.todos('[data-solo="predio"]', r).forEach(function(n){ n.hidden = zona; });
+    var pista = dom.uno('#fs-pista-radio-zona', r);
+    if (pista) pista.hidden = !zona;
+    // El mapa deja de esperar un clic de predio y pasa a mostrar el área.
+    if (zona && mapa) { try { mapa.fitBounds(cajaBusqueda()); } catch(e){} }
+  }
+
+  // Área que se barre. Se acota al casco urbano y no al área metropolitana
+  // completa: una consulta de 33 km de lado a Overpass no vuelve (medido:
+  // 103 s y respuesta vacía), y fuera del perímetro urbano casi no hay
+  // entorno que evaluar.
+  function cajaBusqueda(){
+    var c = FS.cfg.CENTRO;
+    var d = 0.035;                       // ~3,9 km a cada lado → 8 km de lado
+    return [[c.lat - d, c.lng - d], [c.lat + d, c.lng + d]];
+  }
+
+  function chipUso(u){
+    var activo = borrador.modo === 'mixto'
+      ? borrador.usosMixto.indexOf(u.id) !== -1
+      : u.id === borrador.usoId;
+    var attr = borrador.modo === 'mixto' ? 'data-uso-mixto' : 'data-uso';
+    return '<button type="button" class="fs-chip-uso' + (activo ? ' activa' : '') + '" ' +
+      attr + '="' + u.id + '">' + u.icono + ' ' + esc(u.nombre) + '</button>';
+  }
+
+  /* ── Contador de unidades por uso ──────────────────────────────────────
+     Lo que convierte una selección en un programa: no es lo mismo un local
+     y doce apartamentos que doce locales y un apartamento. */
+  function pintarCantidades(){
+    var caja = document.getElementById('fs-cantidades');
+    if (!caja) return;
+    if (borrador.modo !== 'mixto' || !borrador.usosMixto.length || !USOS) {
+      caja.innerHTML = ''; return;
+    }
+    var totalM2 = 0;
+    var filas = borrador.usosMixto.map(function(id){
+      var u = USOS.POR_ID[id] || MOTOR.PROGRAMA_POR_ID[id];
+      if (!u) return '';
+      var n = borrador.cantidades[id] || 1;
+      var m2 = n * (u.m2 || 40);
+      totalM2 += m2;
+      return '<div class="fs-cant">' +
+        '<span class="fs-cant-n">' + u.icono + ' ' + esc(u.nombre) + '</span>' +
+        '<div class="fs-cant-ctl">' +
+          '<button type="button" data-cant="-" data-id="' + id + '" aria-label="Quitar uno">−</button>' +
+          '<b>' + n + '</b>' +
+          '<button type="button" data-cant="+" data-id="' + id + '" aria-label="Agregar uno">+</button>' +
+        '</div>' +
+        '<span class="fs-cant-u">' + esc(u.unidad || 'unidades') + '<em>' +
+          FS.util.numero(m2) + ' m²</em></span>' +
+      '</div>';
+    }).join('');
+
+    caja.innerHTML = '<div class="fs-cant-caja">' + filas +
+      '<div class="fs-cant-total"><span>Área construida estimada</span>' +
+        '<b>' + FS.util.numero(totalM2) + ' m²</b></div>' +
+      '<p class="fs-pista">Área aproximada según el tamaño típico de cada unidad. ' +
+        'Sirve para dimensionar, no reemplaza un diseño arquitectónico.</p></div>';
+  }
+  // Solo los números cambian al pulsar +/−: la estructura de filas es la misma
+  // mientras no se agregue ni quite un uso.
+  function refrescarCifrasCantidades(){
+    var caja = document.getElementById('fs-cantidades');
+    if (!caja || !USOS) return;
+    var totalM2 = 0;
+    dom.todos('.fs-cant', caja).forEach(function(fila){
+      var id = (fila.querySelector('[data-cant]') || {}).getAttribute
+             ? fila.querySelector('[data-cant]').getAttribute('data-id') : null;
+      if (!id) return;
+      var u = USOS.POR_ID[id] || MOTOR.PROGRAMA_POR_ID[id] || {};
+      var n = borrador.cantidades[id] || 1;
+      var m2 = n * (u.m2 || 40);
+      totalM2 += m2;
+      var val = fila.querySelector('.fs-cant-ctl b');
+      if (val) val.textContent = n;
+      var area = fila.querySelector('.fs-cant-u em');
+      if (area) area.textContent = FS.util.numero(m2) + ' m²';
+    });
+    var tot = caja.querySelector('.fs-cant-total b');
+    if (tot) tot.textContent = FS.util.numero(totalM2) + ' m²';
+  }
+
+  // Marcar o desmarcar un uso del programa. Al marcarlo entra con una unidad:
+  // un uso elegido sin cantidad no significaría nada al ponderar por área.
+  function alternarUsoMixto(id){
+    var i = borrador.usosMixto.indexOf(id);
+    if (i === -1) { borrador.usosMixto.push(id); borrador.cantidades[id] = 1; }
+    else { borrador.usosMixto.splice(i, 1); delete borrador.cantidades[id]; }
+    pintarCantidades();
+    refrescarBoton();
+  }
+
   function usoActual(){
     return MOTOR.PROGRAMA_POR_ID[borrador.usoId] || MOTOR.PROGRAMA[0];
   }
 
   var borrador = {
     punto: null, direccion: '', radioM: FS.cfg.RADIO_INICIAL,
-    usoId: MOTOR.PROGRAMA[0].id, nombre: '', modo: 'simple', usosMixto: []
+    usoId: MOTOR.PROGRAMA[0].id, nombre: '', modo: 'simple', usosMixto: [],
+    // Cuántas unidades de cada uso lleva el proyecto: { local_comercial: 3 }.
+    // Es lo que convierte "marqué tres casillas" en un programa con tamaño.
+    cantidades: {},
+    // 'predio' = tengo el lote y quiero saber si sirve.
+    // 'zona'   = tengo el negocio y quiero saber dónde ponerlo.
+    pregunta: 'predio'
   };
+  var USOS = window.FUXORASCOPE_USOS || null;
+  var PROSPECCION = window.FUXORASCOPE_PROSPECCION || null;
+  var resultadoZonas = null;
   var mapa = null, capaPredio = null, capaRadio = null, capaPuntos = null;
   var capaEstratos = null, leyendaCtrl = null, botonEstratoBtn = null;
 
@@ -61,7 +228,19 @@
 
         '<div class="fs-formulario" id="fs-formulario">' +
 
-          '<div class="fs-paso">' +
+          // Las dos preguntas que sabe responder el producto. Se ponen antes
+          // que todo porque cambian el resto del formulario: si el cliente no
+          // tiene lote, pedirle una dirección no tiene sentido.
+          '<div class="fs-modo" role="tablist" aria-label="Tipo de análisis">' +
+            '<button type="button" role="tab" class="fs-modo-op' +
+              (borrador.pregunta === 'predio' ? ' activa' : '') + '" data-pregunta="predio">' +
+              '<b>📍 Tengo el lote</b><span>¿Sirve para lo que quiero montar?</span></button>' +
+            '<button type="button" role="tab" class="fs-modo-op' +
+              (borrador.pregunta === 'zona' ? ' activa' : '') + '" data-pregunta="zona">' +
+              '<b>🔎 Busco dónde</b><span>¿En qué parte de la ciudad lo pongo?</span></button>' +
+          '</div>' +
+
+          '<div class="fs-paso" data-solo="predio">' +
             '<h2><i>1</i> ¿Dónde está el predio?</h2>' +
             '<div class="fs-buscador">' +
               '<input id="fs-buscar" type="text" autocomplete="off" ' +
@@ -86,25 +265,20 @@
 
           '<div class="fs-paso">' +
             '<h2><i>3</i> ¿Qué se quiere implantar?</h2>' +
+            // Con 148 usos una rejilla plana es inservible: se busca o se
+            // abre la familia. El buscador va primero porque quien ya sabe
+            // qué quiere no debería tener que encontrar su categoría.
+            '<div class="fs-usos-buscar">' +
+              '<input id="fs-buscar-uso" type="text" autocomplete="off" ' +
+                'placeholder="Busca el negocio… (ej. granizado, barbería, taller)" />' +
+            '</div>' +
             '<div class="fs-usos" id="fs-usos" ' + (borrador.modo === 'mixto' ? 'hidden' : '') + '>' +
-              GRUPOS_PROGRAMA.map(function(g){
-                var items = programaPorGrupo(g.perfil);
-                if (!items.length) return '';
-                return '<div class="fs-usos-grupo">' +
-                  '<span class="fs-usos-grupo-titulo">' + esc(g.titulo) + '</span>' +
-                  '<div class="fs-usos-grupo-chips">' +
-                    items.map(function(u){
-                      return '<button type="button" class="fs-chip-uso' +
-                        (u.id === borrador.usoId ? ' activa' : '') + '" data-uso="' + u.id + '">' +
-                        u.icono + ' ' + esc(u.nombre) + '</button>';
-                    }).join('') +
-                  '</div>' +
-                '</div>';
-              }).join('') +
             '</div>' +
             '<button type="button" id="fs-btn-combinar" class="fs-enlace-combinar" ' +
               (borrador.modo === 'mixto' ? 'hidden' : '') + '>' +
               '➕ Combinar varios usos en un mismo proyecto</button>' +
+
+            '<div id="fs-cantidades"></div>' +
 
             '<div id="fs-combinador" ' + (borrador.modo === 'mixto' ? '' : 'hidden') + '>' +
               '<p class="fs-pista">Elige los usos que van en el mismo predio. El veredicto será el ' +
@@ -134,6 +308,16 @@
         '<div class="fs-trabajando" id="fs-trabajando" hidden>' +
           '<div class="fs-girando fs-girando--grande"></div>' +
           '<p id="fs-trabajando-texto">Consultando el entorno…</p>' +
+          // En el barrido de ciudad la espera es larga y con varios pasos:
+          // callarlos haría parecer que se colgó.
+          '<p class="fs-pista" id="fs-trabajando-paso"></p>' +
+        '</div>' +
+
+        '<div class="fs-zonas-pantalla" id="fs-zonas" hidden>' +
+          '<div id="fs-zonas-cuerpo"></div>' +
+          '<div class="fs-acciones">' +
+            '<button type="button" class="fs-btn" id="fs-zonas-volver">↩️ Cambiar de negocio</button>' +
+          '</div>' +
         '</div>' +
 
         '<div class="fs-fallo" id="fs-fallo" hidden>' +
@@ -381,13 +565,20 @@
     var b = dom.uno('#fs-analizar');
     if (!b) return;
     var faltaUso = borrador.modo === 'mixto' && !borrador.usosMixto.length;
+
+    // En "busco dónde" no hace falta predio: lo que se busca es justamente eso.
+    if (borrador.pregunta === 'zona') {
+      b.disabled = faltaUso;
+      b.textContent = faltaUso ? 'Elige al menos un uso' : 'Buscar dónde montarlo';
+      return;
+    }
     b.disabled = !borrador.punto || faltaUso;
     b.textContent = !borrador.punto ? 'Marca el predio para continuar' :
                      faltaUso ? 'Elige al menos un uso' : 'Analizar viabilidad';
   }
 
   function mostrar(cual){
-    ['fs-formulario','fs-trabajando','fs-fallo','fs-resultado'].forEach(function(id){
+    ['fs-formulario','fs-trabajando','fs-fallo','fs-resultado','fs-zonas'].forEach(function(id){
       var el = dom.uno('#' + id);
       if (el) el.hidden = (id !== cual);
     });
@@ -395,10 +586,154 @@
     if (panel) panel.scrollTop = 0;
     // En móvil, el resultado se ve mejor con la hoja expandida — se abre
     // sola, pero se puede volver a recoger arrastrando o con un toque.
-    if (cual === 'fs-resultado') fijarAlturaHoja('expandida');
+    if (cual === 'fs-resultado' || cual === 'fs-zonas') fijarAlturaHoja('expandida');
+  }
+
+  /* ── Resultado del barrido ───────────────────────────────────────────── */
+  var capaZonas = null;
+
+  function pintarZonas(res){
+    var G = window.FUXORASCOPE_GRAFICOS;
+    var caja = dom.uno('#fs-zonas-cuerpo');
+    if (!caja) return;
+    var uso = (USOS && USOS.POR_ID[res.info.usoId]) || MOTOR.PROGRAMA_POR_ID[res.info.usoId] || {};
+    var top = res.top;
+
+    if (!top.length) {
+      caja.innerHTML = '<div class="fs-bloque"><h3>Sin zonas suficientes</h3>' +
+        '<p class="fs-pista">No encontramos suficiente entorno construido para comparar. ' +
+        'Prueba con un radio mayor.</p></div>';
+      return;
+    }
+
+    var mejor = top[0];
+    var maxIdx = mejor.indice;
+
+    // Ranking como barras: es una comparación de magnitud entre pocas
+    // opciones, que es justo lo que una barra ordenada resuelve mejor.
+    var filas = top.map(function(z, i){
+      var w = maxIdx ? (z.indice / maxIdx) * 100 : 0;
+      var col = z.indice >= 70 ? '#1f9d55' : z.indice >= 50 ? '#d99a12' : '#e05a4a';
+      return '<button type="button" class="fs-zona" data-zona="' + i + '">' +
+        '<span class="fs-zona-pos">' + (i + 1) + '</span>' +
+        '<span class="fs-zona-body">' +
+          '<b>' + esc(z.nombre || 'Zona sin nombre') + '</b>' +
+          (z.comuna ? '<small>' + esc(z.comuna) + '</small>' : '') +
+          '<span class="fs-zona-riel"><i style="width:' + w.toFixed(1) + '%;background:' + col + '"></i></span>' +
+          '<small class="fs-zona-datos">' + FS.util.numero(z.habitantes) + ' habitantes cerca · ' +
+            z.puntos + ' negocios en el radio</small>' +
+        '</span>' +
+        '<span class="fs-zona-idx" style="color:' + col + '">' + z.indice + '</span>' +
+      '</button>';
+    }).join('');
+
+    caja.innerHTML =
+      '<div class="fs-bloque">' +
+        '<h3>Mejores zonas para ' + esc(uso.nombre || 'este negocio') + ' ' +
+          (uso.icono || '') + '</h3>' +
+        '<p class="fs-pista">Se evaluaron <b>' + res.info.evaluadas + ' zonas</b> del casco urbano ' +
+          'con ' + FS.util.numero(res.info.elementos) + ' puntos de entorno, usando el mismo cálculo ' +
+          'que el estudio de un solo predio. Toca una zona para estudiarla a fondo.</p>' +
+        '<div class="fs-zonas">' + filas + '</div>' +
+      '</div>' +
+      '<div class="fs-bloque">' +
+        '<h3>Por qué gana ' + esc(mejor.nombre || 'la primera') + '</h3>' +
+        (G ? G.barras('Criterios de la zona ganadora', 'sobre 100', [
+          { etiqueta:'Demanda',        n: Math.round(mejor.subindices.demanda) },
+          { etiqueta:'Competencia',    n: Math.round(mejor.subindices.competencia) },
+          { etiqueta:'Accesibilidad',  n: Math.round(mejor.subindices.acceso) },
+          { etiqueta:'Entorno',        n: Math.round(mejor.subindices.entorno) },
+          { etiqueta:'Complementos',   n: Math.round(mejor.subindices.complemento) }
+        ], { mantenerOrden:true }) : '') +
+        '<p class="fs-pista">La población es una <b>estimación por sector censal</b>, no el dato ' +
+          'exacto de manzana: sirve para ordenar zonas, no como cifra final. Al abrir una zona ' +
+          'se recalcula con el detalle fino.</p>' +
+      '</div>';
+
+    // Pintar en el mapa
+    if (mapa) {
+      if (capaZonas) { try { mapa.removeLayer(capaZonas); } catch(e){} }
+      capaZonas = L.layerGroup().addTo(mapa);
+      top.forEach(function(z, i){
+        var col = z.indice >= 70 ? '#1f9d55' : z.indice >= 50 ? '#d99a12' : '#e05a4a';
+        L.circle([z.lat, z.lng], {
+          radius: res.info.radio, color: col, weight: 2,
+          fillColor: col, fillOpacity: i === 0 ? .26 : .12
+        }).addTo(capaZonas);
+        L.marker([z.lat, z.lng], {
+          icon: L.divIcon({ className:'fs-zona-pin', html:'<span>' + (i + 1) + '</span>',
+                            iconSize:[26,26], iconAnchor:[13,13] })
+        }).addTo(capaZonas).bindPopup(
+          '<b>' + esc(z.nombre || 'Zona') + '</b><br>Índice ' + z.indice + ' · ' + esc(z.nivel));
+      });
+      try { mapa.fitBounds(capaZonas.getBounds(), { padding:[30,30] }); } catch(e){}
+    }
+
+  }
+
+  // Se enlaza una sola vez: #fs-zonas-cuerpo es el mismo nodo en cada
+  // barrido, así que reenlazar en cada pintado apilaría listeners.
+  function enlazarZonas(raiz){
+    var cuerpo = dom.uno('#fs-zonas-cuerpo', raiz);
+    if (cuerpo) dom.enlazar(cuerpo, {
+      'click [data-zona]': function(ev, b){
+        var z = resultadoZonas && resultadoZonas.top[Number(b.getAttribute('data-zona'))];
+        if (!z) return;
+        // Estudiar la zona a fondo = volver al modo normal con el punto puesto.
+        borrador.pregunta = 'predio';
+        limpiarZonas();
+        fijarPredio(z.lat, z.lng, z.nombre || 'Zona sugerida');
+        analizar();
+      }
+    });
+    var volver = dom.uno('#fs-zonas-volver', raiz);
+    if (volver) volver.addEventListener('click', function(){
+      limpiarZonas();
+      mostrar('fs-formulario');
+    });
+  }
+
+  function limpiarZonas(){
+    if (capaZonas && mapa) { try { mapa.removeLayer(capaZonas); } catch(e){} }
+    capaZonas = null;
+  }
+
+  /* ── Modo "busco dónde": barrer la ciudad ───────────────────────────── */
+  function buscarZonas(){
+    if (!PROSPECCION) return;
+    var usoId = borrador.modo === 'mixto' && borrador.usosMixto.length
+      ? borrador.usosMixto[0] : borrador.usoId;
+    var b = cajaBusqueda();
+    mostrar('fs-trabajando');
+
+    var paso = dom.uno('#fs-trabajando-paso');
+    var avisar = function(m){ if (paso) paso.textContent = m; };
+
+    PROSPECCION.evaluar({
+      caja: { sur:b[0][0], oeste:b[0][1], norte:b[1][0], este:b[1][1] },
+      radio: borrador.radioM,
+      paso: Math.max(300, Math.round(borrador.radioM * 0.8)),
+      usoId: usoId
+    }, avisar)
+    .then(function(r){
+      var grupos = PROSPECCION.agrupar(r.zonas, Math.max(600, borrador.radioM * 1.4));
+      var top = grupos.slice(0, 8);
+      avisar('Identificando los barrios…');
+      return PROSPECCION.nombrar(top, 8).then(function(){
+        resultadoZonas = { info: r, top: top };
+        pintarZonas(resultadoZonas);
+        mostrar('fs-zonas');
+      });
+    })
+    .catch(function(err){
+      dom.uno('#fs-fallo-texto').textContent = (err && err.message) ||
+        'No pudimos barrer la ciudad. Intenta de nuevo en un momento.';
+      mostrar('fs-fallo');
+    });
   }
 
   function analizar(){
+    if (borrador.pregunta === 'zona') return buscarZonas();
     if (!borrador.punto) return;
     borrador.nombre = (dom.uno('#fs-nombre') || {}).value || '';
     mostrar('fs-trabajando');
@@ -435,11 +770,12 @@
     if (borrador.modo === 'mixto' && borrador.usosMixto.length) {
       var programa = MOTOR.calcularPrograma({
         elementos: paquete.elementos, radioM: borrador.radioM,
-        centro: borrador.punto, usos: borrador.usosMixto, poblacion: poblacion
+        centro: borrador.punto, usos: borrador.usosMixto, poblacion: poblacion,
+        cantidades: borrador.cantidades
       });
       // Se reutiliza calcularIndice en modo 'general' solo para obtener el
       // inventario del entorno (porCategoria, vías) — el índice de esa
-      // llamada se descarta, el que manda es el promedio del programa.
+      // llamada se descarta, el que manda es el ponderado por área del programa.
       var entorno = MOTOR.calcularIndice({
         elementos: paquete.elementos, radioM: borrador.radioM,
         centro: borrador.punto, tipoNegocio: 'general', poblacion: poblacion
@@ -449,7 +785,7 @@
       estudio = {
         modo: 'mixto',
         indice: programa.indiceConjunto, nivel: programa.nivel,
-        porUso: programa.porUso, compatibilidad: programa.compatibilidad,
+        porUso: programa.porUso, compatibilidad: programa.compatibilidad, areaTotal: programa.areaTotal,
         porCategoria: entorno.porCategoria, otrosDetalle: entorno.otrosDetalle, viasCercanas: entorno.viasCercanas,
         radioM: borrador.radioM, mezclaUsos: mezclaUsos,
         nombre: borrador.nombre || ('Programa combinado · ' + (borrador.direccion || FS.cfg.CIUDAD)),
@@ -494,7 +830,8 @@
         if (borrador.modo === 'mixto' && borrador.usosMixto.length) {
           res = MOTOR.calcularPrograma({
             elementos: elementos, radioM: r, centro: borrador.punto,
-            usos: borrador.usosMixto, poblacion: poblacion
+            usos: borrador.usosMixto, poblacion: poblacion,
+            cantidades: borrador.cantidades
           });
           return { radioM:r, indice: res.indiceConjunto, nivel: res.nivel };
         }
@@ -770,8 +1107,10 @@
         medidor(e.indice, nivel.color) +
         '<div class="fs-veredicto-texto">' +
           '<b>' + esc(nivel.titulo) + ' del conjunto</b>' +
-          '<p>Promedio de los ' + e.porUso.length + ' usos elegidos — cada uno se evalúa con su propio ' +
-            'perfil de criterios, y el veredicto conjunto es el punto medio entre todos.</p>' +
+          '<p>Resultado de los ' + e.porUso.length + ' usos elegidos — cada uno se evalúa con su propio ' +
+            'perfil de criterios, y el conjunto los promedia <b>según el área que ocupa cada uno</b>, ' +
+            'no por partes iguales' +
+            (e.areaTotal ? ' (' + FS.util.numero(e.areaTotal) + ' m² en total)' : '') + '.</p>' +
         '</div>' +
       '</div>' +
 
@@ -784,7 +1123,10 @@
               '<span class="fs-uso-mini-ico">' + u.icono + '</span>' +
               '<b>' + esc(u.nombre) + '</b>' +
               '<div class="fs-uso-mini-indice">' + u.indice + '</div>' +
-              '<small>' + esc(u.nivel) + '</small></div>';
+              '<small>' + esc(u.nivel) +
+                (u.unidades > 1 ? ' · ' + u.unidades + ' ' + esc(u.unidad) : '') +
+                (u.participacion ? ' · ' + u.participacion + '% del área' : '') +
+              '</small></div>';
           }).join('') +
         '</div>' +
       '</div>' +
@@ -1027,13 +1369,64 @@
       }
     });
 
+    // Selector de usos: familias plegables, chips y buscador.
+    pintarSelectorUsos('');
+    var buscarUso = dom.uno('#fs-buscar-uso', raiz);
+    if (buscarUso) {
+      var relojUso = null;
+      buscarUso.addEventListener('input', function(){
+        clearTimeout(relojUso);
+        relojUso = setTimeout(function(){ pintarSelectorUsos(buscarUso.value); }, 160);
+      });
+    }
+
     dom.enlazar(dom.uno('#fs-usos', raiz), {
+      'click [data-familia]': function(ev, b){
+        var id = b.getAttribute('data-familia');
+        familiaAbierta = (familiaAbierta === id) ? null : id;
+        pintarSelectorUsos(buscarUso ? buscarUso.value : '');
+      },
       'click [data-uso]': function(ev, b){
-        dom.todos('#fs-usos .fs-chip-uso', raiz).forEach(function(o){ o.classList.remove('activa'); });
-        b.classList.add('activa');
         borrador.usoId = b.getAttribute('data-uso');
+        pintarSelectorUsos(buscarUso ? buscarUso.value : '');
+      },
+      'click [data-uso-mixto]': function(ev, b){
+        alternarUsoMixto(b.getAttribute('data-uso-mixto'));
+        pintarSelectorUsos(buscarUso ? buscarUso.value : '');
       }
     });
+
+    // Contador de unidades
+    var cajaCant = dom.uno('#fs-cantidades', raiz);
+    if (cajaCant) {
+      cajaCant.addEventListener('click', function(ev){
+        var b = ev.target.closest('[data-cant]');
+        if (!b) return;
+        var id = b.getAttribute('data-id');
+        var n = borrador.cantidades[id] || 1;
+        n += (b.getAttribute('data-cant') === '+' ? 1 : -1);
+        borrador.cantidades[id] = Math.max(1, Math.min(999, n));
+        // Se actualizan solo las cifras: repintar el bloque entero le quitaría
+        // el foco al botón en cada toque, y sumar 40 unidades sería imposible.
+        refrescarCifrasCantidades();
+      });
+    }
+
+    // Cambio entre las dos preguntas del producto
+    var modo = dom.uno('.fs-modo', raiz);
+    if (modo) {
+      modo.addEventListener('click', function(ev){
+        var b = ev.target.closest('[data-pregunta]');
+        if (!b) return;
+        borrador.pregunta = b.getAttribute('data-pregunta');
+        dom.todos('.fs-modo-op', raiz).forEach(function(o){
+          o.classList.toggle('activa', o === b);
+        });
+        aplicarPregunta(raiz);
+        refrescarBoton();
+      });
+    }
+    aplicarPregunta(raiz);
 
     dom.uno('#fs-btn-combinar', raiz).addEventListener('click', function(){
       borrador.modo = 'mixto';
@@ -1051,13 +1444,13 @@
       dom.todos('#fs-usos-chips .fs-chip-uso', raiz).forEach(function(c){ c.classList.remove('activa'); });
       refrescarBoton();
     });
+    // Los chips del combinador y los del catálogo hacen exactamente lo mismo:
+    // una sola función evita que uno de los dos se quede sin actualizar las
+    // cantidades, que fue justo lo que pasó cuando estaban duplicados.
     dom.enlazar(dom.uno('#fs-usos-chips', raiz), {
       'click [data-uso-mixto]': function(ev, b){
-        var id = b.getAttribute('data-uso-mixto');
-        var i = borrador.usosMixto.indexOf(id);
-        if (i === -1) borrador.usosMixto.push(id); else borrador.usosMixto.splice(i, 1);
+        alternarUsoMixto(b.getAttribute('data-uso-mixto'));
         b.classList.toggle('activa');
-        refrescarBoton();
       }
     });
 
@@ -1073,6 +1466,7 @@
     montar: function(raiz){
       iniciarMapa();
       enlazarFormulario(raiz);
+      enlazarZonas(raiz);
       engancharArrastreHoja();
 
       // Si se llega desde "Mis estudios", se pinta el estudio ya cargado.

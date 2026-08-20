@@ -189,7 +189,11 @@
   // horario:     franja en la que opera (0 = diurno, 1 = nocturno)
   // ruido:       impacto sobre el vecino (0 = silencioso, 1 = alto impacto)
   // formalidad:  ritmo de la actividad (0 = rápido/casual, 1 = pausado/serio)
-  const PROGRAMA = [
+  // El catálogo vive en src/usos.js (148 usos en 18 familias) para que
+  // ampliarlo sea editar datos y no tocar el motor. La lista de abajo es el
+  // RESPALDO: si ese archivo no carga, el producto sigue funcionando con los
+  // 28 usos originales en vez de quedarse sin catálogo.
+  const PROGRAMA_BASE = [
     { id:'local_comercial', nombre:'Local comercial',     icono:'🛍️', perfil:'comercio',
       flujo:.60, horario:.40, ruido:.30, formalidad:.50 },
     { id:'supermercado',    nombre:'Supermercado',        icono:'🛒', perfil:'comercio',
@@ -247,8 +251,21 @@
     { id:'vivienda',        nombre:'Vivienda',            icono:'🏠', perfil:'general',
       flujo:.20, horario:.50, ruido:.10, formalidad:.50 }
   ];
+  const CATALOGO_EXTERNO = (typeof window !== 'undefined' && window.FUXORASCOPE_USOS &&
+    Array.isArray(window.FUXORASCOPE_USOS.USOS) && window.FUXORASCOPE_USOS.USOS.length)
+    ? window.FUXORASCOPE_USOS.USOS : null;
+  const PROGRAMA = CATALOGO_EXTERNO || PROGRAMA_BASE;
+
   const PROGRAMA_POR_ID = {};
   PROGRAMA.forEach(u => { PROGRAMA_POR_ID[u.id] = u; });
+  // El catálogo externo trae además los ids del catálogo viejo apuntando a su
+  // equivalente nuevo. Se copian aquí para que un estudio guardado hace meses
+  // siga resolviendo su uso en vez de caer al genérico "✨".
+  if (CATALOGO_EXTERNO && window.FUXORASCOPE_USOS.POR_ID) {
+    Object.keys(window.FUXORASCOPE_USOS.POR_ID).forEach(id => {
+      if (!PROGRAMA_POR_ID[id]) PROGRAMA_POR_ID[id] = window.FUXORASCOPE_USOS.POR_ID[id];
+    });
+  }
 
   /* ── Compatibilidad entre usos: geometría de atributos, no tabla ─────────
      No hay ninguna matriz ni lista de parejas decidida de antemano. La
@@ -309,25 +326,38 @@
 
   // ── Cálculo de un programa de varios usos ───────────────────────────────
   // Cada uso se evalúa con el PERFIL de pesos que le corresponde (reutiliza
-  // calcularIndice tal cual); el índice conjunto es el promedio simple de
-  // los usos elegidos — a propósito no es una suma ponderada por "importancia
-  // de negocio" como en un motor de recomendación: aquí todos los usos que
-  // el cliente decidió combinar pesan igual en el veredicto del conjunto.
+  // calcularIndice tal cual). El índice conjunto pondera cada uso por el ÁREA
+  // que ocupa en el proyecto (cantidad × m² típicos), no por el número de
+  // casillas marcadas: en una torre de 40 apartamentos con un local, el
+  // veredicto lo manda la vivienda, y un promedio simple diría lo contrario.
+  // Sin cantidades declaradas todos pesan igual, que es el comportamiento
+  // anterior.
   function calcularPrograma(entrada){
     const ids = entrada.usos || [];
+    const cantidades = entrada.cantidades || {};
     const porUso = ids.map(id => {
       const def = PROGRAMA_POR_ID[id] || { id, nombre:id, icono:'✨', perfil:'general' };
       const r = calcularIndice({
         elementos: entrada.elementos, radioM: entrada.radioM, centro: entrada.centro,
         tipoNegocio: def.perfil, poblacion: entrada.poblacion
       });
-      return { id:def.id, nombre:def.nombre, icono:def.icono, indice:r.indice, nivel:r.nivel };
+      const unidades = Math.max(1, Number(cantidades[id]) || 1);
+      return { id:def.id, nombre:def.nombre, icono:def.icono,
+               indice:r.indice, nivel:r.nivel,
+               unidades: unidades,
+               unidad: def.unidad || 'unidades',
+               area: unidades * (def.m2 || 40) };
     });
-    const indiceConjunto = porUso.length
-      ? Math.round(porUso.reduce((s, u) => s + u.indice, 0) / porUso.length)
+    const areaTotal = porUso.reduce((s, u) => s + u.area, 0);
+    const indiceConjunto = porUso.length && areaTotal
+      ? Math.round(porUso.reduce((s, u) => s + u.indice * u.area, 0) / areaTotal)
       : 0;
     const nivel = indiceConjunto >= 70 ? 'Alta' : indiceConjunto >= 45 ? 'Media' : 'Baja';
-    return { porUso, indiceConjunto, nivel, compatibilidad: compatibilidadPrograma(ids) };
+    // Cada uso queda con su participación, para poder explicar en el informe
+    // por qué el conjunto salió como salió.
+    porUso.forEach(u => { u.participacion = areaTotal ? Math.round(100 * u.area / areaTotal) : 0; });
+    return { porUso, indiceConjunto, nivel, areaTotal,
+             compatibilidad: compatibilidadPrograma(ids) };
   }
 
   // ── Indicador: mezcla de usos del sector ────────────────────────────────

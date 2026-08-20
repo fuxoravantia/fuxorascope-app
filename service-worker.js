@@ -17,25 +17,27 @@
    Al subir VERSION se borran los cachés anteriores y el navegador toma la
    versión nueva. Sube VERSION en cada publicación. */
 
-const VERSION = 'fuxorascope-v13';
+const VERSION = 'fuxorascope-v15';
 
 const ARMAZON = [
   './',
   './index.html',
   './manifest.json',
-  './css/base.css?v=13',
-  './css/acceso.css?v=13',
-  './css/estudio.css?v=13',
-  './src/config.js?v=13',
-  './src/nucleo.js?v=13',
-  './src/motor.js?v=13',
-  './src/lectura.js?v=13',
-  './src/datos.js?v=13',
-  './src/graficos.js?v=13',
-  './src/informe.js?v=13',
-  './src/acceso.js?v=13',
-  './src/estudio.js?v=13',
-  './src/app.js?v=13',
+  './css/base.css?v=14',
+  './css/acceso.css?v=14',
+  './css/estudio.css?v=14',
+  './src/config.js?v=14',
+  './src/nucleo.js?v=14',
+  './src/usos.js?v=14',
+  './src/motor.js?v=14',
+  './src/lectura.js?v=14',
+  './src/datos.js?v=14',
+  './src/prospeccion.js?v=14',
+  './src/graficos.js?v=14',
+  './src/informe.js?v=14',
+  './src/acceso.js?v=14',
+  './src/estudio.js?v=14',
+  './src/app.js?v=14',
   './assets/iconos/icono-192.png',
   './assets/iconos/icono-512.png'
 ];

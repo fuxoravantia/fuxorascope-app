@@ -136,6 +136,7 @@
     u('ropa_segunda','Ropa de segunda / usada','♻️','moda','comercio', .50,.35,.25,.15,'locales',60),
 
     /* ═══ HOGAR, FERRETERÍA Y OBRA ══════════════════════════════════════ */
+    u('lavanderia','Lavandería','🧺','hogar','comercio', .35,.40,.35,.35,'locales',60),
     u('ferreteria','Ferretería','🔧','hogar','comercio', .45,.30,.40,.30,'locales',90),
     u('materiales_construccion','Materiales de construcción','🧱','hogar','comercio', .35,.25,.65,.25,'locales',250),
     u('pinturas','Pinturas y acabados','🎨','hogar','comercio', .35,.30,.35,.35,'locales',70),
@@ -219,6 +220,10 @@
     u('gimnasio','Gimnasio','🏋️','ocio','general', .50,.50,.50,.30,'locales',250),
     u('crossfit','Box de crossfit / funcional','🤸','ocio','general', .40,.50,.65,.25,'locales',200),
     u('cancha_sintetica','Cancha sintética','⚽','ocio','general', .50,.70,.55,.20,'canchas',600),
+    // No son negocios, pero sí piezas de un programa mixto (y venían del
+    // catálogo anterior, así que quitarlas rompería estudios ya guardados).
+    u('parque','Parque o zona verde','🌳','ocio','general', .40,.45,.30,.20,'áreas',800),
+    u('iglesia','Templo o iglesia','⛪','ocio','general', .35,.30,.35,.55,'sedes',350),
     u('sala_juegos','Sala de juegos / arcade','🕹️','ocio','general', .50,.65,.55,.15,'locales',90),
     u('cine','Cine','🎬','ocio','general', .65,.70,.45,.40,'salas',300),
     u('centro_cultural','Centro cultural / galería','🖼️','ocio','general', .35,.45,.25,.65,'salas',120),
@@ -281,6 +286,21 @@
       return n.indexOf(t) !== -1 || x.id.indexOf(t) !== -1;
     });
   }
+
+  // Ids del catálogo anterior que aquí quedaron con otro nombre. Se resuelven
+  // como si fueran el uso nuevo para que un estudio guardado antes del
+  // catálogo grande siga abriéndose con su nombre y su ícono.
+  var ALIAS = {
+    taller:      'taller_auto',
+    cafeteria:   'cafe_especialidad',
+    consultorio: 'consultorio_medico',
+    academia:    'academia_idiomas',
+    guarderia:   'jardin_infantil',
+    vivienda:    'apartamentos'
+  };
+  Object.keys(ALIAS).forEach(function(viejo){
+    if (!POR_ID[viejo] && POR_ID[ALIAS[viejo]]) POR_ID[viejo] = POR_ID[ALIAS[viejo]];
+  });
 
   window.FUXORASCOPE_USOS = {
     GRUPOS: GRUPOS,

@@ -450,3 +450,134 @@
 @media (min-width:620px){
   .fs-etapas{ grid-template-columns:repeat(4,1fr); }
 }
+
+/* ═══ Catálogo de usos, cantidades y modo "busco dónde" ══════════════════ */
+
+/* Selector de pregunta: dos pestañas grandes, porque cambia todo el flujo. */
+.fs-modo{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+.fs-modo-op{
+  display:flex; flex-direction:column; gap:3px; align-items:flex-start;
+  padding:12px 13px; text-align:left; cursor:pointer;
+  border:1px solid var(--borde); border-radius:var(--r-medio);
+  background:var(--panel); color:var(--texto-2); font:inherit;
+  transition:border-color .15s, background .15s;
+}
+.fs-modo-op b{ font-size:.95rem; color:var(--texto); }
+.fs-modo-op span{ font-size:.76rem; color:var(--texto-3); line-height:1.3; }
+.fs-modo-op:hover{ border-color:var(--borde-vivo); }
+.fs-modo-op.activa{
+  border-color:var(--marca-clara);
+  background:linear-gradient(180deg, rgba(22,179,201,.16), rgba(22,179,201,.05));
+}
+.fs-modo-op.activa b{ color:var(--marca-brillo); }
+
+/* Buscador del catálogo */
+.fs-usos-buscar{ margin-bottom:11px; }
+.fs-usos-buscar input{
+  width:100%; box-sizing:border-box; padding:11px 13px;
+  font:inherit; color:var(--texto);
+  background:var(--fondo-2); border:1px solid var(--borde);
+  border-radius:var(--r-medio);
+}
+.fs-usos-buscar input::placeholder{ color:var(--texto-3); }
+.fs-usos-buscar input:focus{ outline:none; border-color:var(--marca-clara); }
+
+/* Familias plegables: 148 usos de golpe no se leen; de a familia sí. */
+.fs-familia{
+  border:1px solid var(--borde); border-radius:var(--r-medio);
+  margin-bottom:8px; overflow:hidden; background:var(--panel);
+}
+.fs-familia.abierta{ border-color:var(--borde-vivo); }
+.fs-familia-cab{
+  display:flex; align-items:center; gap:9px; width:100%;
+  padding:11px 12px; cursor:pointer; font:inherit; text-align:left;
+  background:none; border:0; color:var(--texto);
+}
+.fs-familia-cab:hover{ background:var(--panel-2); }
+.fs-familia-ico{ font-size:1.1rem; line-height:1; flex:0 0 auto; }
+.fs-familia-cab b{ flex:1 1 auto; min-width:0; font-size:.92rem; }
+.fs-familia-marca{
+  flex:0 0 auto; font-style:normal; font-size:.72rem; font-weight:700;
+  padding:2px 7px; border-radius:99px;
+  background:var(--marca); color:#fff;
+}
+.fs-familia-n{ flex:0 0 auto; font-size:.76rem; color:var(--texto-3); }
+.fs-familia-flecha{
+  flex:0 0 auto; color:var(--texto-3); font-size:1.15rem; line-height:1;
+  transition:transform .18s;
+}
+.fs-familia.abierta .fs-familia-flecha{ transform:rotate(90deg); }
+.fs-familia .fs-usos-grupo-chips{ padding:0 12px 12px; }
+
+/* Cantidades por uso: el número es el dato, así que va tabular y destacado. */
+.fs-cant-caja{
+  margin-top:14px; padding:12px;
+  background:var(--fondo-2); border:1px solid var(--borde);
+  border-radius:var(--r-medio);
+}
+.fs-cant{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 0; border-bottom:1px solid var(--borde);
+}
+.fs-cant-n{ flex:1 1 auto; min-width:0; font-size:.86rem; color:var(--texto); }
+.fs-cant-ctl{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
+.fs-cant-ctl button{
+  width:30px; height:30px; flex:0 0 auto; cursor:pointer;
+  font-size:1.05rem; line-height:1; color:var(--texto);
+  background:var(--panel-2); border:1px solid var(--borde-vivo);
+  border-radius:var(--r-chico);
+}
+.fs-cant-ctl button:hover{ border-color:var(--marca-clara); color:var(--marca-brillo); }
+.fs-cant-ctl b{
+  min-width:2.4ch; text-align:center;
+  font-variant-numeric:tabular-nums; color:var(--marca-brillo);
+}
+.fs-cant-u{
+  flex:0 0 auto; width:78px; text-align:right;
+  font-size:.72rem; color:var(--texto-3); line-height:1.3;
+}
+.fs-cant-u em{ display:block; font-style:normal; color:var(--texto-2); }
+.fs-cant-total{
+  display:flex; justify-content:space-between; align-items:baseline;
+  padding-top:10px; font-size:.86rem; color:var(--texto-2);
+}
+.fs-cant-total b{ font-size:1.1rem; color:var(--marca-brillo); font-variant-numeric:tabular-nums; }
+
+/* ── Resultado del barrido de ciudad ──────────────────────────────────── */
+.fs-zonas{ display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.fs-zona{
+  display:flex; align-items:center; gap:11px; width:100%;
+  padding:11px 12px; cursor:pointer; text-align:left; font:inherit;
+  background:var(--panel); border:1px solid var(--borde);
+  border-radius:var(--r-medio); color:var(--texto-2);
+  transition:border-color .15s, transform .12s;
+}
+.fs-zona:hover{ border-color:var(--marca-clara); transform:translateX(2px); }
+.fs-zona-pos{
+  flex:0 0 auto; width:25px; height:25px; border-radius:50%;
+  display:grid; place-items:center;
+  font-size:.78rem; font-weight:700; color:var(--fondo);
+  background:var(--marca-brillo);
+}
+.fs-zona-body{ flex:1 1 auto; min-width:0; display:block; }
+.fs-zona-body b{ display:block; font-size:.92rem; color:var(--texto); }
+.fs-zona-body small{ display:block; font-size:.74rem; color:var(--texto-3); }
+/* El riel es un mini gráfico de barra: compara de un vistazo sin leer cifras */
+.fs-zona-riel{
+  display:block; height:5px; margin:6px 0 5px;
+  background:var(--fondo-2); border-radius:99px; overflow:hidden;
+}
+.fs-zona-riel i{ display:block; height:100%; border-radius:99px; }
+.fs-zona-idx{
+  flex:0 0 auto; font-size:1.35rem; font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Pin numerado sobre el mapa: mismo número que la lista, para poder cruzarlos */
+.fs-zona-pin span{
+  display:grid; place-items:center; width:26px; height:26px;
+  border-radius:50%; border:2px solid #fff;
+  background:var(--marca); color:#fff;
+  font-size:.78rem; font-weight:700;
+  box-shadow:0 2px 8px rgba(0,0,0,.45);
+}
